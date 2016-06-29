@@ -191,6 +191,19 @@ var RouteConfig = (function (container) {
           funcs.util
             .immutable($scope, "data", {})
             .immutable($scope, "event", {})
+            .immutable($scope, "get",
+              (function (key) {
+                if ($scope[key]) return $scope[key];
+
+                $scope[key] = {
+                  self: {}
+                };
+
+                console.warn("Error. This key with name '" + key + "' doesn't exist yet.");
+
+                return $scope[key];
+              }).bind($scope)
+            )
             .immutable($scope.event, "add",
               (function (property, event, callback) {
                 // if the property doesn't exist, create a new wrapper object.
