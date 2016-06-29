@@ -57,7 +57,7 @@ The alternative syntax described above would look like:
 route.controller(function ($scope, $data, view) {
   // see, it's a bit shorter.
   $scope.nameInput = function () {
-    $scope.output.self.innerText = this.value;
+    $scope.output.self.innerText = "Hi, your name is" + this.value + ".";
   };
 })
 ```
