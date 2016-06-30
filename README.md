@@ -100,7 +100,7 @@ The benefit of this syntax is that it creates the wrapper for the `b-name` objec
 If you want to plainly (and safely) assign a single or multiple events to any object, you can use the key/value syntax like below to add events:
 
 ```javascript
-$scope.events.add(b-value, "click", function () {
+$scope.events.add(b-name, "click", function () {
   // .. your code here.
 })
 ```
@@ -108,7 +108,7 @@ $scope.events.add(b-value, "click", function () {
 Or multiple events using the object syntax:
 
 ```javascript
-$scope.events.add(b-value, {
+$scope.events.add(b-name, {
   click: function () {
     // .. your code here.
   },
@@ -119,10 +119,18 @@ $scope.events.add(b-value, {
     // .. more code here.
   }
 });
-
 ```
 
-##Storing Data
+##Storing Object-Level Data
+If you want to store data that is associated with a particular `b-name` object, you can use the `$scope.data` assignment which sets a key value pair like below:
+
+```javascript
+$scope.data.prop(b-name, "temperature", "78.6F");
+```
+
+The data is then bound to `b-name` in the current `$scope` view only. It will appear inside the `$scope` in `$scope[b-name].data["temperature"]`.
+
+##Storing View-Level Data
 If you want to store data associated with a view, you can use the `$data` object.
 
 For example, if you make a data request to another site which returns a list of results, you probably don't want to to fetch that resource every time you land on the view again. If that's the case, use the $data object to check if data exists and retrieve its value.
