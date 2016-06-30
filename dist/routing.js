@@ -343,6 +343,8 @@ var RouteConfig = (function (container) {
             });
           }
 
+          // now check if the b-{{event}} attributes exist with values of callbacks
+          // in the scope. Run the callbacks if they exist on event.
           DOMEvents.forEach(function (event) {
             var cb_name = node.getAttribute("b-" + event);
             if (cb_name) {
@@ -360,6 +362,7 @@ var RouteConfig = (function (container) {
       // events.
       addEvents: function (callback) {
         var self = this;
+
         this.observe(function (mutation) {
           var nodes = mutation.addedNodes;
 
@@ -548,7 +551,7 @@ var RouteConfig = (function (container) {
         // this is an internal set of instructions to run after a user defined
         // transition.
         // this removes the copy (that should be hidden by users), and makes sure
-        // that the main contianer with the new view is showing.
+        // that the main container with the new view is showing.
         after: function () {
           if (meta.copy) {
             // remove the copy node.
