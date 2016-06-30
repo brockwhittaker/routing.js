@@ -13,6 +13,7 @@ var files = [
   "lib/components/load.js",
   "lib/components/mutation.js",
   "lib/components/routes.js",
+  "lib/components/scope.js",
   "lib/components/transition.js",
   "lib/components/util.js",
   "lib/components/view.js",
