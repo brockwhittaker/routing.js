@@ -46,7 +46,7 @@ route.controller(function ($scope, $data, view) {
   // get the element where the b-name='name'.
   $scope.event.add("name", "input", function () {
     // set the element where the b-name='output' to the value of b-name='name'.
-    $scope.output.self.innerText = this.value;
+    $scope.output.self[0].innerText = this.value;
   });
 });
 ```
@@ -57,7 +57,7 @@ The alternative syntax described above would look like:
 route.controller(function ($scope, $data, view) {
   // see, it's a bit shorter.
   $scope.nameInput = function () {
-    $scope.output.self.innerText = "Hi, your name is" + this.value + ".";
+    $scope.output.self[0].innerText = "Hi, your name is" + this.value + ".";
   };
 })
 ```
