@@ -1,0 +1,27 @@
+{
+  "name": "routing.js",
+  "version": "0.1.0",
+  "description": "Routing.js is an MVC Framework.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brockwhittaker/routing.js.git"
+  },
+  "author": "Brock Whittaker",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/brockwhittaker/routing.js/issues"
+  },
+  "homepage": "https://github.com/brockwhittaker/routing.js#readme",
+  "devDependencies": {
+    "gulp": "^3.9.1"
+  },
+  "dependencies": {
+    "gulp": "^3.9.1",
+    "gulp-concat": "^2.6.0",
+    "gulp-inject": "^4.1.0"
+  }
+}
