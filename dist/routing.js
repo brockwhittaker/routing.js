@@ -38,11 +38,14 @@ var RouteConfig = (function (container) {
       },
       // create a new scope property.
       createScopeKey: function ($scope, key) {
-        if (!$scope[key])
-          $scope[key] = {
-            self: {},
-            data: {}
-          };
+        var immutable = funcs.util.immutable;
+
+        if (!$scope[key]) {
+          $scope[key] = {};
+
+          immutable($scope[key], "data", {});
+          immutable($scope[key], "self", []);
+        }
       }
     },
 
@@ -362,7 +365,8 @@ var RouteConfig = (function (container) {
 
           // if the scope object for this doesn't exist, create it.
           funcs.util.createScopeKey($scope, name);
-          $scope[name].self = node;
+
+          $scope[name].self.push(node);
 
           if (events) {
             // add each event.
@@ -390,6 +394,15 @@ var RouteConfig = (function (container) {
         }
       },
 
+      removeNode: function (node) {
+        var name = node.getAttribute("b-name"),
+            $scope = meta.routes[meta.view].state;
+
+        $scope[name].self = $scope[name].self.filter(function (o) {
+          return (!node.isSameNode(o));
+        });
+      },
+
       // this runs the callback when a mutation occurs and is the proper type.
       // it iterates through the nodeList and runs the above function to add
       // events.
@@ -397,10 +410,17 @@ var RouteConfig = (function (container) {
         var self = this;
 
         this.observe(function (mutation) {
-          var nodes = mutation.addedNodes;
+          var added = mutation.addedNodes;
+          var removed = mutation.removedNodes;
 
-          for (var x = 0; x < nodes.length; x++) {
-            self.addEventsToNode(nodes[x]);
+          var x;
+
+          for (x = 0; x < removed.length; x++) {
+            self.removeNode(removed[x]);
+          }
+
+          for (x = 0; x < added.length; x++) {
+            self.addEventsToNode(added[x]);
           }
         });
       }
