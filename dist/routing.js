@@ -35,6 +35,14 @@ var RouteConfig = (function (container) {
         });
 
         return this;
+      },
+      // create a new scope property.
+      createScopeKey: function ($scope, key) {
+        if (!$scope[key])
+          $scope[key] = {
+            self: {},
+            data: {}
+          };
       }
     },
 
@@ -167,67 +175,65 @@ var RouteConfig = (function (container) {
     routes: {
 
       createScope: function ($scope, routes) {
-        // create a new scope property.
-        var createScopeKey = function ($scope, key) {
-          $scope[key] = {
-            self: {},
-            data: {}
-          };
-        };
+        var immutable = funcs.util.immutable;
 
         // make `event` in $scope immutable as well as `add` inside of
         // $scope.event. Also add `data` inside $scope for random user data.
-        funcs.util
-          .immutable($scope, "data", {})
-          .immutable($scope, "event", {})
-          .immutable($scope, "get", function (property) {
-            if ($scope[key]) return $scope[property];
+        // create $scope level data object for storing state data.
+        immutable($scope, "data", {});
 
-            createScopeKey($scope, property);
+        // create event object for adding event functions.
+        immutable($scope, "event", {});
+        // create the $scope.event.add function to add custom events.
+        immutable($scope.event, "add",
+          (function (property, event, callback) {
+            // if the property doesn't exist, create a new wrapper object.
+            if (!this[property]) this[property] = {};
 
-            console.warn("Error. This property with name '" + property + "' doesn't exist yet.");
-
-            return $scope[property];
-          })
-          .immutable($scope, "data", function (property, key, value) {
-            if (!$scope[property]) createScopeKey($scope, property);
-
-            $scope.data[key] = value;
-
-            return $scope;
-          })
-          .immutable($scope.event, "add",
-            (function (property, event, callback) {
-              // if the property doesn't exist, create a new wrapper object.
-              if (!this[property]) this[property] = {};
-
-              // if the event is an object, it's an iterable with multiple events.
-              if (typeof event == "object") {
-                // so run through it and take the key as the event and the value
-                // as the callback.
-                for (var x in event) {
-                  this[property][x] = event[x];
-                }
-              } else {
-                // otherwise just set the event [key] to the callback [value].
-                this[property][event] = callback;
+            // if the event is an object, it's an iterable with multiple events.
+            if (typeof event == "object") {
+              // so run through it and take the key as the event and the value
+              // as the callback.
+              for (var x in event) {
+                this[property][x] = event[x];
               }
-              // make thisArg the current state.
-
-              return this;
-            }).bind($scope)
-          )
-          .immutable($scope, "transfer", function (key, new_view) {
-            var data = $scope.data[key];
-
-            if (typeof data == "undefined" || data === null)
-              throw "Error. No data found with key '" + key + "'";
-            else {
-              routes[new_view].state.data[key] = data;
+            } else {
+              // otherwise just set the event [key] to the callback [value].
+              this[property][event] = callback;
             }
+            // make thisArg the current state.
+          }).bind($scope)
+        );
 
-            return $scope;
-          });
+        // safe retrieval of a property that creates it if it doesn't exist.
+        immutable($scope, "get", function (property) {
+          if ($scope[property]) return $scope[property];
+
+          funcs.util.createScopeKey($scope, property);
+
+          console.warn("Error. This property with name '" + property + "' doesn't exist yet.");
+
+          return $scope[property];
+        });
+
+        // creation of a native data object that is bound to the $scope.
+        immutable($scope.data, "prop", function (property, key, value) {
+          if (!$scope[property]) funcs.util.createScopeKey($scope, property);
+
+          $scope[property].data[key] = value;
+
+          return $scope[property].data[key];
+        });
+
+        immutable($scope.data, "transfer", function (key, view) {
+          var data = $scope.data[key];
+
+          if (typeof data == "undefined" || data === null)
+            throw "Error. Data associated with key '" + key + "' does not exist.";
+          if (meta.routes[view]) {
+            meta.routes[view].state.data[key] = data;
+          } else throw "Error. View with the name '" + name + "' does not exist.";
+        });
       },
 
       // add a new route to the meta.routes list.
@@ -250,7 +256,7 @@ var RouteConfig = (function (container) {
           };
 
           var $scope = meta.routes[name].state;
-          this.createScope($scope, meta.routes);
+          funcs.routes.createScope($scope, meta.routes);
 
         // otherwise throw an error that the route already exists.
         } else throw "Error. Route with the name '" + name + "' already exists.";
@@ -355,8 +361,7 @@ var RouteConfig = (function (container) {
               name = node.getAttribute("b-name");
 
           // if the scope object for this doesn't exist, create it.
-          if (!$scope[name]) $scope[name] = {};
-          // set self to the node.
+          funcs.util.createScopeKey($scope, name);
           $scope[name].self = node;
 
           if (events) {
@@ -672,12 +677,6 @@ var RouteConfig = (function (container) {
       scope: function (callback) {
         var $scope = meta.routes[meta.view].state;
         callback($scope, $scope.data, meta.container);
-      },
-
-      transferData: function (data, view, key) {
-        if (meta.routes[view]) {
-          meta.routes[view].state.data[key] = data;
-        } else throw "Error, this view with name '" + view + "' doesn't exist yet.";
       }
     },
   };

@@ -149,3 +149,18 @@ route.controller(function ($scope, $data, view) {
 ```
 
 Now if you were to go to another view, say "search", and then back to the "home" view, the $data.stockInfo will still be there, so there will be no need to send off a `GET` request again.
+
+##Transfering View-Level Data
+If you want to transfer data from one view from another, you can use the `$scope.data.transfer` (also just `$data.transfer`) function to move a property.
+
+In the example below, we create the `temperature` data property in the `home` view and transfer it to the `list` view.
+
+```javascript
+route.controller(function ($scope, $data, view) {
+  $data.temperature = "78F";
+
+  $data.transfer("temperature", "list");
+});
+```
+
+So now if we go to the list view and run inside the controller, `$data.temperature` will exist and be set to "78F".
