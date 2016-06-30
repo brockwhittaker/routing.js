@@ -3,7 +3,6 @@ var concat = require("gulp-concat");
 var uglify = require("gulp-uglify");
 
 var files = [
-  "lib/build/top.js",
   "lib/components/.init.js",
   "lib/components/ajax.js",
   "lib/components/config.js",
@@ -17,7 +16,7 @@ var files = [
   "lib/components/transition.js",
   "lib/components/util.js",
   "lib/components/view.js",
-  "lib/build/bottom.js"
+  "lib/build/RouteConfig.js"
 ];
 
 gulp.task("concat", function () {

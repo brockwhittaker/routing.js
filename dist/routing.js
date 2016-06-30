@@ -1,36 +1,8 @@
-var RouteConfig = (function (container) {
-  "use strict";
-
-  // storage mechanism for private variables only accessible inside the closure.
-  var meta = {
-    // the script for the view controller.
-    script: null,
-    // a list of valid routes to go to.
-    routes: {},
-    config: {
-      // reload html/js every time view changes or not ever.
-      cache: true
-    },
-    // the main container to insert html to.
-    container: null,
-    // the copy container to insert old html to while in transition.
-    copy: null,
-    // the name of the current view.
-    view: {
-      current: null,
-      old: null
-    },
-    animation: {
-      inProgress: false
-    },
-    observer: null
-  };
-
 var funcs = {};
 
 // url should be a valid string path.
 // cbs should be a valid object of callbacks [success] and [error].
-funcs.ajax = function (url, cbs) {
+funcs.ajax = function (url, cbs, cache) {
   // create a new http request instance.
   var http = new XMLHttpRequest();
 
@@ -51,7 +23,7 @@ funcs.ajax = function (url, cbs) {
   };
 
   // if caching is disabled, force a new copy by appending a GET param 't'.
-  if (meta.config.cache === false) {
+  if (cache === false) {
     url += "?t=" + new Date().getTime();
   }
 
@@ -62,7 +34,8 @@ funcs.ajax = function (url, cbs) {
 
 // this runs through a settings object and applies the settings individually
 // to the config object inside of the meta object.
-funcs.config = function (settings) {
+// this function is bound to meta.config, so `this` is the operative var.
+funcs.config = function (settings, meta) {
   for (var x in settings) {
     // make sure the property already exists. Don't set new properties.
     if (settings.hasOwnProperty(x) && typeof meta.config[x] !== "undefined") {
@@ -73,12 +46,12 @@ funcs.config = function (settings) {
     }
   }
 
-  return _prototype;
+  return this.proto;
 };
 
 funcs.controller = {
   // this gives the scope to users along with access to the container node.
-  scope: function (callback) {
+  scope: function (callback, meta) {
     var $scope = meta.routes[meta.view.current].state;
     callback($scope, $scope.data, meta.container);
   }
@@ -138,8 +111,6 @@ funcs.hash = {
         } else {
           window.location.hash = "/" + value + (get ? "?" + get : "");
         }
-
-        return _prototype;
       },
 
       // a setter function to set the pseudo-get params in the location.hash
@@ -154,8 +125,6 @@ funcs.hash = {
         else {
           window.location.hash = "/" + hash.view + (get ? "?" + get : "");
         }
-
-        return _prototype;
       }
     }
   },
@@ -182,12 +151,12 @@ funcs.hash = {
 
 // any processes that need to be done on initialization of the RouteConfig
 // function.
-funcs.init = function () {
+funcs.init = function (meta, container) {
   // on hash change, run the route.deploy function through the funcs.view.new
   // wrapper function.
   window.onhashchange = (function () {
     var hash = this.hash.public.get();
-    this.view.new(hash.view);
+    this.view.new(hash.view, meta);
   }).bind(this);
 
   // query select the first element in the container selection.
@@ -196,7 +165,7 @@ funcs.init = function () {
     container;
 
   // initialize the DOM mutation watcher.
-  this.mutation.addEvents();
+  this.mutation.addEvents(meta);
 };
 
 // load functions that utilize AJAX or XHR requests to either fetch html
@@ -204,7 +173,7 @@ funcs.init = function () {
 funcs.load = {
   // fetch HTML from a desired component page and trigger a callback with
   // the results.
-  html: function (url, callback) {
+  html: function (url, callback, cache) {
     funcs.ajax(url, {
       success: function (response) {
         callback(response);
@@ -213,12 +182,12 @@ funcs.load = {
         callback(response);
         throw error;
       }
-    });
+    }, cache);
   },
 
   // change the meta.script src to the desired url and then onload run the
   // callback function.
-  script: function (url, callback) {
+  script: function (meta, url, callback) {
     // remove the old script from the document.body.
     if (meta.script) document.body.removeChild(meta.script);
 
@@ -238,7 +207,7 @@ funcs.load = {
   },
 
   // loads both the html and script and then runs a general callback.
-  page: function (route, callback) {
+  page: function (meta, route, callback) {
     var loaded = {
       html: false,
       script: false
@@ -251,7 +220,7 @@ funcs.load = {
     // this function also now runs controller javascript to add event listeners.
     var loadScript = (function () {
       // load the script and trigger the completion callback if html is loaded.
-      this.script(route.url.script, function () {
+      this.script(meta, route.url.script, function () {
         loaded.script = true;
 
         callback();
@@ -276,7 +245,7 @@ funcs.load = {
         meta.container.innerHTML = route.content.html;
 
         loadScript();
-      });
+      }, meta.config.cache);
     }
 
   }
@@ -289,9 +258,10 @@ funcs.mutation = {
   // inside the callback, it looks through each of the mutations and checks
   // if the type is "childList", and if so deploys a callback with the mutation
   // object.
-  observe: function (callback) {
+  observe: function (meta, callback) {
     // create an observer instance
-    meta.observer = new MutationObserver(function(mutations) {
+
+    var observer = new MutationObserver(function(mutations) {
       mutations.forEach(function(mutation) {
         if (mutation.type == "childList") {
           callback(mutation);
@@ -301,7 +271,9 @@ funcs.mutation = {
 
     var config = { attributes: true, childList: true, characterData: true };
     // pin to the meta.observer object.
-    meta.observer.observe(meta.container, config);
+    observer.observe(meta.container, config);
+
+    return observer;
   },
 
   // this takes a node, looks through to see if it is a node that can have
@@ -310,11 +282,8 @@ funcs.mutation = {
   // by looking through the 'b-events' string and splitting by commas.
   // it then adds either an empty function or if there's a function already
   // specified it keeps it.
-  addEventsToNode: function (node) {
+  addEventsToNode: function ($scope, node) {
     var DOMEvents = ["click", "input", "mousemove"];
-
-    // grab the proper scope.
-    var $scope = meta.routes[meta.view.current].state;
 
     // create an empty function to put in place of null.
     var empty = function () {};
@@ -356,11 +325,10 @@ funcs.mutation = {
   },
 
   // remove nodes that
-  removeNode: function (node) {
+  removeNode: function ($currentScope, $oldScope, node) {
     if (node.nodeType === 1 && node.hasAttribute("b-name")) {
       var name = node.getAttribute("b-name"),
-          $scope = meta.routes[meta.view.current].state,
-          $elem = $scope[name] || meta.routes[meta.view.old].state[name];
+          $elem = $currentScope[name] || $oldScope[name];
 
       // unlock $scope[key].self so that I can run Array.prototype.filter on
       // it.
@@ -377,24 +345,29 @@ funcs.mutation = {
     }
   },
 
-  // this runs the callback when a mutation occurs and is the proper type.
   // it iterates through the nodeList and runs the above function to add
   // events.
-  addEvents: function (callback) {
+  addEvents: function (meta) {
     var self = this;
 
-    this.observe(function (mutation) {
+    meta.observe = this.observe(meta, function (mutation) {
       var added = mutation.addedNodes;
       var removed = mutation.removedNodes;
+
+      // grab both the last scope and the current one.
+      var $scope = {
+        current: meta.routes[meta.view.current].state,
+        old: meta.view.old ? meta.routes[meta.view.old].state: null
+      };
 
       var x;
 
       for (x = 0; x < removed.length; x++) {
-        self.removeNode(removed[x]);
+        self.removeNode($scope.current, $scope.old, removed[x]);
       }
 
       for (x = 0; x < added.length; x++) {
-        self.addEventsToNode(added[x]);
+        self.addEventsToNode($scope.current, added[x]);
       }
     });
   }
@@ -403,7 +376,8 @@ funcs.mutation = {
 funcs.routes = {
   // add a new route to the meta.routes list.
   // this adds a new pair of HTML and JS to load.
-  add: function (name, html, js) {
+  // `this` is bound to `meta`.
+  add: function (name, html, js, meta) {
     // if the route doesn't already exist, create a new one.
     if (!meta.routes[name]) {
       meta.routes[name] = {
@@ -421,22 +395,20 @@ funcs.routes = {
       };
 
       var $scope = meta.routes[name].state;
-      funcs.util.createScope($scope, meta.routes);
+      funcs.util.createScope(meta, $scope, meta.routes);
 
     // otherwise throw an error that the route already exists.
     } else throw "Error. Route with the name '" + name + "' already exists.";
-
-    return _prototype;
   },
 
   // if the route exists, load the assets and then run a callback when loaded.
-  deploy: function (name, callback) {
+  deploy: function (meta, name, callback) {
     var route = meta.routes[name];
 
     if (route) {
       funcs.hash.public.set.view(name);
 
-      funcs.load.page(route, function (response) {
+      funcs.load.page(meta, route, function (response) {
         console.log("loaded route '" + name + "'!");
         // run the callback to say, "I'm done loading!".
         if (callback) callback();
@@ -444,7 +416,7 @@ funcs.routes = {
 
     } else throw "Error. Route with the name '" + name + "' does not exist.";
 
-    return _prototype;
+    return this;
   }
 };
 
@@ -460,7 +432,7 @@ funcs.transition = {
   */
 
   // a func to make a deep clone of the existing container.
-  clonePage: function () {
+  clonePage: function (meta) {
     // if a current meta.copy exists, another transition is probably running.
     // cleanup this transition by killing the copy of meta.transition.
     if (meta.copy) {
@@ -497,14 +469,14 @@ funcs.transition = {
 
   // hide the current container.
   // add an inline styling to set display to 'none'.
-  hideContainer: function () {
+  hideContainer: function (meta) {
     meta.container.style.display = "none";
   },
 
   // append meta.copy right after meta.container in the html.
   // this assumes that there's a parent node to the meta.container.
   // the container should be set to something other than <body> or <html>.
-  appendCopy: function () {
+  appendCopy: function (meta) {
     // get the parent node of the current container.
     var parent = meta.container.parentNode;
     // insert meta.copy before the next element after meta.container,
@@ -520,7 +492,8 @@ funcs.transition = {
     // and view load to complete.
     // the second and third parameters are the copy container and the
     // container with the new view in it.
-    set: function (callback) {
+    // `this` is bound to `meta`.
+    set: function (callback, meta) {
       meta.transition = callback;
     },
 
@@ -528,7 +501,7 @@ funcs.transition = {
     // transition.
     // this removes the copy (that should be hidden by users), and makes sure
     // that the main container with the new view is showing.
-    after: function () {
+    after: function (meta) {
       if (meta.copy) {
         // remove the copy node.
         meta.copy.parentNode.removeChild(meta.copy);
@@ -550,10 +523,10 @@ funcs.transition = {
   // this creates a copy node of the original, hides the original container,
   // and then appends the copy such that it should be placed similarly in the
   // document.
-  before: function (callback) {
-    this.clonePage();
-    this.hideContainer();
-    this.appendCopy();
+  before: function (meta, callback) {
+    this.clonePage(meta);
+    this.hideContainer(meta);
+    this.appendCopy(meta);
   }
 };
 
@@ -593,7 +566,7 @@ funcs.util = {
     }
   },
 
-  createScope: function ($scope, routes) {
+  createScope: function (meta, $scope, routes) {
     var immutable = funcs.util.immutable;
 
     // make `event` in $scope immutable as well as `add` inside of
@@ -658,7 +631,7 @@ funcs.util = {
 
 funcs.view = {
 
-  new: function (name) {
+  new: function (name, meta) {
     // if the new view is different from the old view, run the transition.
     if (name !== meta.view.current && meta.view.current !== null && meta.routes[name]) {
 
@@ -672,24 +645,24 @@ funcs.view = {
       // set the location.hash view name.
       funcs.hash.public.set.view(name);
       // run pre-transition procedural (create copy, hide original).
-      funcs.transition.before();
+      funcs.transition.before(meta);
 
       // deploy the new route and provide a callback when it's done.
-      funcs.routes.deploy(name, function () {
+      funcs.routes.deploy(meta, name, function () {
         // this is confusing, but essentially it runs the custom user transition.
         // the user then triggers the `done` parameter which internally triggers
         // funcs.transition.callback.after, which switches views again basically.
         if (meta.transition) {
           // use Function.prototype.call to run the function and set params.
           // set `this` as 'null' to disallow access to internal functions.
-          meta.transition.call(null, funcs.transition.callback.after, {
+          meta.transition.call(null, funcs.transition.callback.after.bind(null, meta), {
             old: meta.copy,
             new: meta.container
           }, {
             new: meta.view.current,
             old: meta.view.old
           });
-        } else funcs.transition.callback.after();
+        } else funcs.transition.callback.after(meta);
       });
     // the location.hash variable being set should not trigger this function,
     // so still block `name !== meta.view.current` and make sure the route exists.
@@ -703,8 +676,8 @@ funcs.view = {
       meta.view.current = name;
       meta.animation.inProgress = true;
 
-      funcs.routes.deploy(name, function () {
-        funcs.transition.callback.after();
+      funcs.routes.deploy(meta, name, function () {
+        funcs.transition.callback.after(meta);
       });
     } else if (!meta.routes[name]) {
       console.warn("Error. The route '" + name + "' does not exist.");
@@ -715,21 +688,63 @@ funcs.view = {
   }
 };
 
-  funcs.init();
+var RouteConfig = (function (container) {
+  "use strict";
+
+  // storage mechanism for private variables only accessible inside the closure.
+  var meta = {
+    // the script for the view controller.
+    script: null,
+    // a list of valid routes to go to.
+    routes: {},
+    config: {
+      // reload html/js every time view changes or not ever.
+      cache: true
+    },
+    // the main container to insert html to.
+    container: null,
+    // the copy container to insert old html to while in transition.
+    copy: null,
+    // the name of the current view.
+    view: {
+      current: null,
+      old: null
+    },
+    animation: {
+      inProgress: false
+    },
+    observer: null,
+    _prototype: _prototype
+  };
+
+  funcs.init(meta, container);
 
   var _prototype = {
     // run the funcs.routes.add func with params [[ name, html, js ]].
-    add: funcs.routes.add,
+    add: function (name, html, js) {
+      funcs.routes.add(name, html, js, meta);
+
+      return this;
+    },
     // run the funcs.routes.deploy func with [[ name ]] param.
-    deploy: funcs.view.new,
+    deploy: function (name) {
+      funcs.view.new(name, meta);
+      return this;
+    },
     // set configuration options in [[ settings ]] param.
-    config: funcs.config,
+    config: function (settings) {
+      funcs.config(settings, meta);
+    },
     // browser location.hash getters/setters and pseudo-get params.
     hash: funcs.hash.public,
     // set the transition.
-    transition: funcs.transition.callback.set,
+    transition: function (callback) {
+      funcs.transition.callback.set(callback, meta);
+    },
     // add controller functionality to allow access to scope variables.
-    controller: funcs.controller.scope
+    controller: function (callback) {
+      funcs.controller.scope(callback, meta);
+    }
   };
 
   return _prototype;
