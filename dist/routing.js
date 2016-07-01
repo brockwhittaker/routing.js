@@ -288,40 +288,47 @@ funcs.mutation = {
     // create an empty function to put in place of null.
     var empty = function () {};
 
-    if (node.nodeType === 1 && node.hasAttribute("b-name")) {
-      // get a list of events by splitting by commas.
-      var events = node.getAttribute("b-events"),
-          name = node.getAttribute("b-name");
+    // get a list of events by splitting by commas.
+    var events = node.getAttribute("b-events"),
+        name = node.getAttribute("b-name");
 
-      // if the scope object for this doesn't exist, create it.
-      funcs.scope.create.key($scope, name);
+    // if the scope object for this doesn't exist, create it.
+    funcs.scope.create.key($scope, name);
 
-      $scope[name].self.push(node);
+    $scope[name].self.push(node);
 
-      if (events) {
-        // add each event.
-        events.split(/,/).forEach(function (event) {
-          $scope[name][event] = $scope[name][event] || empty;
+    if (events) {
+      // add each event.
+      events.split(/,/).forEach(function (event) {
+        $scope[name][event] = $scope[name][event] || empty;
 
-          // add the event listener for each event.
-          node.addEventListener(event, function (e) {
-            $scope[name][event].call(this, e);
-          });
+        // add the event listener for each event.
+        node.addEventListener(event, function (e) {
+          $scope[name][event].call(this, e);
         });
-      }
-
-      // now check if the b-{{event}} attributes exist with values of callbacks
-      // in the scope. Run the callbacks if they exist on event.
-      DOMEvents.forEach(function (event) {
-        var cb_name = node.getAttribute("b-" + event);
-        if (cb_name) {
-          node.addEventListener(event, function (e) {
-            if (typeof $scope[cb_name] == "function")
-              $scope[cb_name].call(this, e);
-          });
-        }
       });
     }
+
+    // now check if the b-{{event}} attributes exist with values of callbacks
+    // in the scope. Run the callbacks if they exist on event.
+    DOMEvents.forEach(function (event) {
+      var cb_name = node.getAttribute("b-" + event);
+      if (cb_name) {
+        node.addEventListener(event, function (e) {
+          if (typeof $scope[cb_name] == "function")
+            $scope[cb_name].call(this, e);
+        });
+      }
+    });
+  },
+
+  addRepeatToNode: function ($scope, node) {
+    var repeatName = node.hasAttribute("b-repeat");
+
+    funcs.util.immutable($scope.data.repeat, repeatName, {
+      node: node,
+      list: []
+    });
   },
 
   // remove nodes that
@@ -367,7 +374,15 @@ funcs.mutation = {
       }
 
       for (x = 0; x < added.length; x++) {
-        self.addEventsToNode($scope.current, added[x]);
+        if (added[x].nodeType === 1) {
+          if (added[x].hasAttribute("b-name")) {
+            self.addEventsToNode($scope.current, added[x]);
+          }
+
+          if (added[x].hasAttribute("b-repeat")) {
+
+          }
+        }
       }
     });
   }
@@ -442,8 +457,21 @@ funcs.scope = {
       // create $scope level data object for storing state data.
       immutable($scope, "data", {});
 
+      // safe retrieval of a property that creates it if it doesn't exist.
+      immutable($scope, "get", function (property) {
+        if ($scope[property]) return $scope[property];
+
+        funcs.scope.create.key($scope, property);
+
+        console.warn("Error. This property with name '" + property + "' doesn't exist yet.");
+
+        return $scope[property];
+      });
+
       // create event object for adding event functions.
       immutable($scope, "event", {});
+
+
       // create the $scope.event.add function to add custom events.
       immutable($scope.event, "add",
         (function (property, event, callback) {
@@ -465,15 +493,19 @@ funcs.scope = {
         }).bind($scope)
       );
 
-      // safe retrieval of a property that creates it if it doesn't exist.
-      immutable($scope, "get", function (property) {
-        if ($scope[property]) return $scope[property];
+      immutable($scope, "repeat", function (name, node) {
+        if ($scope.data.repeat[name]) {
+          $repeat = $scope.data.repeat[name];
 
-        funcs.scope.create.key($scope, property);
+          return {
+            push: function (obj) {
+              //$repeat.
+            },
+            filter: function () {
 
-        console.warn("Error. This property with name '" + property + "' doesn't exist yet.");
-
-        return $scope[property];
+            }
+          };
+        } else console.warn("Error. Repeat associated with key '" + name + "' does not exist yet.");
       });
 
       // creation of a native data object that is bound to the $scope.
@@ -494,9 +526,25 @@ funcs.scope = {
           meta.routes[view].state.data[key] = data;
         } else throw "Error. View with the name '" + name + "' does not exist.";
       });
+
+      immutable($scope.data, "repeat", {});
     }
   }
 };
+
+/*
+Create $scope.repeat({{name}}) which returns an object that you can push, pop, etc.
+This is stored in $scope.data.repeat[name] and is *locked down*.
+
+The $scope.data.repeat[name] is an object like:
+
+{
+  container: <NODE>,
+  list: []
+}
+
+Where the container is cloned and the list is modified.
+*/
 
 funcs.transition = {
   /*
