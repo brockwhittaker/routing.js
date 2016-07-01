@@ -63,12 +63,20 @@ funcs.scope = {
 
           return {
             push: function (obj) {
-              $repeat.list.push(obj);
-
               // create a new instance of the node.
               node = node.cloneNode(true);
               // get values from b-obj and fill in innerHTML with the values.
               node = funcs.DOM.fillWithObjectProperties(node, obj);
+
+              // add internal __meta property for keeping track of the node it
+              // is associated with and whether it's been removed.
+              obj.__meta = {
+                node: node,
+                removed: false
+              };
+
+              // push to the list.
+              $repeat.list.push(obj);
 
               if ($repeat.meta.prev) {
                 funcs.DOM.after(node, $repeat.meta.prev);
@@ -79,7 +87,21 @@ funcs.scope = {
               return this;
             },
             filter: function (callback) {
-              $repeat.list = $repeat.list.filter(callback);
+              $repeat.list.forEach(function (o) {
+                console.log(callback(o), o);
+                if (callback(o) === false) {
+                  o.__meta.removed = true;
+                }
+              });
+
+              $repeat.list = $repeat.list.filter(function (o) {
+                if (o.__meta.removed) {
+                  funcs.DOM.remove(o.__meta.node);
+                  return false;
+                } else return true;
+              });
+
+              return this;
             }
           };
         } else console.warn("Error. Repeat associated with key '" + name + "' does not exist yet.");

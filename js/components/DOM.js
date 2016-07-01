@@ -8,6 +8,9 @@ funcs.DOM = {
   after: function (node, sibling) {
     sibling.parentNode.insertBefore(node, sibling.nextSibling);
   },
+  remove: function (node) {
+    node.parentNode.removeChild(node);
+  },
   fillWithObjectProperties: function (parent, object) {
     var nodes = parent.querySelectorAll("[b-obj]");
 

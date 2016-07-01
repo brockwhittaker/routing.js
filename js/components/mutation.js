@@ -76,13 +76,15 @@ funcs.mutation = {
     node.removeAttribute("b-repeat");
 
     funcs.util.immutable($scope.data.repeat, repeatName, {
-      node: node,
+      node: node.cloneNode(true),
       list: [],
       meta: {
         prev: node.previousSibling,
         parent: node.parentNode
       }
     });
+
+    funcs.DOM.remove(node);
   },
 
   // remove nodes that
@@ -132,7 +134,7 @@ funcs.mutation = {
           if (added[x].hasAttribute("b-name")) {
             self.addEventsToNode($scope.current, added[x]);
           }
-          console.log(added[x]);
+
           if (added[x].hasAttribute("b-repeat")) {
             self.addRepeatToNode($scope.current, added[x]);
           }
