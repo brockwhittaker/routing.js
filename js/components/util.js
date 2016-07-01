@@ -20,5 +20,16 @@ funcs.util = {
     Object.defineProperty(obj, key, {
       writable: true
     });
+  },
+
+  dotToObject: function (object, path) {
+    path = path.split(/\./);
+
+    path.forEach(function (o) {
+      if (object[o]) object = object[o];
+      else console.warn("Cannot find property '" + o + "' of object in dot notation.");
+    });
+
+    return object || "";
   }
 };

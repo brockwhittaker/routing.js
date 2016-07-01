@@ -57,6 +57,30 @@ funcs.controller = {
   }
 };
 
+funcs.DOM = {
+  append: function (node, parent) {
+    parent.appendChild(node);
+  },
+  prepend: function (node, parent) {
+    parent.insertBefore(node, parent.firstChild);
+  },
+  after: function (node, sibling) {
+    sibling.parentNode.insertBefore(node, sibling.nextSibling);
+  },
+  fillWithObjectProperties: function (parent, object) {
+    var nodes = parent.querySelectorAll("[b-obj]");
+
+    var path, value;
+    for (var x = 0; x < nodes.length; x++) {
+      path = nodes[x].getAttribute("b-obj");
+      value = funcs.util.dotToObject(object, path);
+
+      nodes[x].innerHTML = value;
+    }
+
+    return parent;
+  }
+};
 
 funcs.hash = {
   public: {
@@ -323,11 +347,18 @@ funcs.mutation = {
   },
 
   addRepeatToNode: function ($scope, node) {
-    var repeatName = node.hasAttribute("b-repeat");
+    var repeatName = node.getAttribute("b-repeat"),
+        object = node.getAttribute("b-obj");
+
+    node.removeAttribute("b-repeat");
 
     funcs.util.immutable($scope.data.repeat, repeatName, {
       node: node,
-      list: []
+      list: [],
+      meta: {
+        prev: node.previousSibling,
+        parent: node.parentNode
+      }
     });
   },
 
@@ -378,9 +409,9 @@ funcs.mutation = {
           if (added[x].hasAttribute("b-name")) {
             self.addEventsToNode($scope.current, added[x]);
           }
-
+          console.log(added[x]);
           if (added[x].hasAttribute("b-repeat")) {
-
+            self.addRepeatToNode($scope.current, added[x]);
           }
         }
       }
@@ -493,16 +524,30 @@ funcs.scope = {
         }).bind($scope)
       );
 
-      immutable($scope, "repeat", function (name, node) {
+      immutable($scope, "repeat", function (name) {
         if ($scope.data.repeat[name]) {
-          $repeat = $scope.data.repeat[name];
+          var $repeat = $scope.data.repeat[name],
+              node = $repeat.node;
 
           return {
             push: function (obj) {
-              //$repeat.
-            },
-            filter: function () {
+              $repeat.list.push(obj);
 
+              // create a new instance of the node.
+              node = node.cloneNode(true);
+              // get values from b-obj and fill in innerHTML with the values.
+              node = funcs.DOM.fillWithObjectProperties(node, obj);
+
+              if ($repeat.meta.prev) {
+                funcs.DOM.after(node, $repeat.meta.prev);
+              } else {
+                funcs.DOM.prepend(node, $repeat.meta.parent);
+              }
+
+              return this;
+            },
+            filter: function (callback) {
+              $repeat.list = $repeat.list.filter(callback);
             }
           };
         } else console.warn("Error. Repeat associated with key '" + name + "' does not exist yet.");
@@ -678,6 +723,17 @@ funcs.util = {
     Object.defineProperty(obj, key, {
       writable: true
     });
+  },
+
+  dotToObject: function (object, path) {
+    path = path.split(/\./);
+
+    path.forEach(function (o) {
+      if (object[o]) object = object[o];
+      else console.warn("Cannot find property '" + o + "' of object in dot notation.");
+    });
+
+    return object || "";
   }
 };
 

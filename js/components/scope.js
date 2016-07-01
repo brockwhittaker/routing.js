@@ -56,16 +56,30 @@ funcs.scope = {
         }).bind($scope)
       );
 
-      immutable($scope, "repeat", function (name, node) {
+      immutable($scope, "repeat", function (name) {
         if ($scope.data.repeat[name]) {
-          $repeat = $scope.data.repeat[name];
+          var $repeat = $scope.data.repeat[name],
+              node = $repeat.node;
 
           return {
             push: function (obj) {
-              //$repeat.
-            },
-            filter: function () {
+              $repeat.list.push(obj);
 
+              // create a new instance of the node.
+              node = node.cloneNode(true);
+              // get values from b-obj and fill in innerHTML with the values.
+              node = funcs.DOM.fillWithObjectProperties(node, obj);
+
+              if ($repeat.meta.prev) {
+                funcs.DOM.after(node, $repeat.meta.prev);
+              } else {
+                funcs.DOM.prepend(node, $repeat.meta.parent);
+              }
+
+              return this;
+            },
+            filter: function (callback) {
+              $repeat.list = $repeat.list.filter(callback);
             }
           };
         } else console.warn("Error. Repeat associated with key '" + name + "' does not exist yet.");

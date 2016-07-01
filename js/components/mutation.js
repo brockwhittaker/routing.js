@@ -70,11 +70,18 @@ funcs.mutation = {
   },
 
   addRepeatToNode: function ($scope, node) {
-    var repeatName = node.hasAttribute("b-repeat");
+    var repeatName = node.getAttribute("b-repeat"),
+        object = node.getAttribute("b-obj");
+
+    node.removeAttribute("b-repeat");
 
     funcs.util.immutable($scope.data.repeat, repeatName, {
       node: node,
-      list: []
+      list: [],
+      meta: {
+        prev: node.previousSibling,
+        parent: node.parentNode
+      }
     });
   },
 
@@ -125,9 +132,9 @@ funcs.mutation = {
           if (added[x].hasAttribute("b-name")) {
             self.addEventsToNode($scope.current, added[x]);
           }
-
+          console.log(added[x]);
           if (added[x].hasAttribute("b-repeat")) {
-
+            self.addRepeatToNode($scope.current, added[x]);
           }
         }
       }
