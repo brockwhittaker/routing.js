@@ -82,6 +82,17 @@ funcs.DOM = {
     }
 
     return parent;
+  },
+  parentAndChildren: function (node) {
+    var arr = [node];
+
+    var children = node.childNodes;
+
+    for (var x = 0; x < children.length; x++) {
+      arr.push(children[x]);
+    }
+
+    return arr;
   }
 };
 
@@ -340,6 +351,7 @@ funcs.mutation = {
     // in the scope. Run the callbacks if they exist on event.
     DOMEvents.forEach(function (event) {
       var cb_name = node.getAttribute("b-" + event);
+
       if (cb_name) {
         node.addEventListener(event, function (e) {
           if (typeof $scope[cb_name] == "function")
@@ -409,16 +421,24 @@ funcs.mutation = {
         self.removeNode($scope.current, $scope.old, removed[x]);
       }
 
-      for (x = 0; x < added.length; x++) {
-        if (added[x].nodeType === 1) {
-          if (added[x].hasAttribute("b-name")) {
-            self.addEventsToNode($scope.current, added[x]);
-          }
+      var addEventsToAllNodes = function (parent) {
+        var allNodes = funcs.DOM.parentAndChildren(parent);
 
-          if (added[x].hasAttribute("b-repeat")) {
-            self.addRepeatToNode($scope.current, added[x]);
+        allNodes.forEach(function (o) {
+          if (o.nodeType === 1) {
+            if (o.hasAttribute("b-name")) {
+              self.addEventsToNode($scope.current, o);
+            }
+
+            if (o.hasAttribute("b-repeat")) {
+              self.addRepeatToNode($scope.current, o);
+            }
           }
-        }
+        });
+      };
+
+      for (x = 0; x < added.length; x++) {
+        addEventsToAllNodes(added[x]);
       }
     });
   }

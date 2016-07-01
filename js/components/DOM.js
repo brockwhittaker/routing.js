@@ -23,5 +23,16 @@ funcs.DOM = {
     }
 
     return parent;
+  },
+  parentAndChildren: function (node) {
+    var arr = [node];
+
+    var children = node.childNodes;
+
+    for (var x = 0; x < children.length; x++) {
+      arr.push(children[x]);
+    }
+
+    return arr;
   }
 };
