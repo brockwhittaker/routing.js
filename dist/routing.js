@@ -323,7 +323,9 @@ funcs.mutation = {
       });
     });
 
-    var config = { attributes: true, childList: true, characterData: true };
+    // a list of what these flags do: https://dom.spec.whatwg.org/#mutationobserver
+    var config = { attributes: true, childList: true, characterData: true, subtree: true };
+
     // pin to the meta.observer object.
     observer.observe(meta.container, config);
 
@@ -346,25 +348,29 @@ funcs.mutation = {
     var events = node.getAttribute("b-events"),
         name = node.getAttribute("b-name");
 
-    // if the scope object for this doesn't exist, create it.
-    funcs.scope.create.key($scope, name);
+    // these require a name because these events are bound to a namespace.
+    if (name) {
+      // if the scope object for this doesn't exist, create it.
+      funcs.scope.create.key($scope, name);
 
-    $scope[name].self.push(node);
+      $scope[name].self.push(node);
 
-    if (events) {
-      // add each event.
-      events.split(/,/).forEach(function (event) {
-        $scope[name][event] = $scope[name][event] || empty;
+      if (events) {
+        // add each event.
+        events.split(/,/).forEach(function (event) {
+          $scope[name][event] = $scope[name][event] || empty;
 
-        // add the event listener for each event.
-        node.addEventListener(event, function (e) {
-          $scope[name][event].call(this, e);
+          // add the event listener for each event.
+          node.addEventListener(event, function (e) {
+            $scope[name][event].call(this, e);
+          });
         });
-      });
+      }
     }
 
     // now check if the b-{{event}} attributes exist with values of callbacks
     // in the scope. Run the callbacks if they exist on event.
+    // these events are not bound to a namespace.
     DOMEvents.forEach(function (event) {
       var cb_name = node.getAttribute("b-" + event);
 
@@ -428,9 +434,7 @@ funcs.mutation = {
 
       allNodes.forEach(function (o) {
         if (o.nodeType === 1) {
-          if (o.hasAttribute("b-name")) {
-            self.addEventsToNode($scope.current, o);
-          }
+          self.addEventsToNode($scope.current, o);
 
           if (o.hasAttribute("b-repeat")) {
             self.addRepeatToNode($scope.current, o);
@@ -574,7 +578,10 @@ funcs.scope = {
 
       // creation of a native data object that is bound to the $scope.
       immutable($scope.data, "prop", function (property, key, value) {
-        if (!$scope[property]) funcs.scope.create.key($scope, property);
+        if (!$scope[property]) {
+          funcs.scope.create.key($scope, property);
+          console.warn("The property with name '" + property + "' doesn't exist yet, but was just created.");
+        }
 
         $scope[property].data[key] = value;
 
@@ -612,13 +619,17 @@ Where the container is cloned and the list is modified.
 
 funcs.scope.repeat = function ($scope) {
   var immutable = funcs.util.immutable;
-  
+
   immutable($scope, "repeat", function (name) {
     if ($scope.data.repeat[name]) {
       var $repeat = $scope.data.repeat[name],
           node = $repeat.node;
 
       var operations = {
+        // generate a random ID for nodes.
+        generateID: function () {
+          return Math.round(Math.random() * 100000000000).toString(36) + "_" + new Date().getTime();
+        },
         // clone the node and change b-obj to innerHTML with object values.
         processNode: function (node, obj) {
           // create a new instance of the node.
@@ -632,10 +643,14 @@ funcs.scope.repeat = function ($scope) {
         // add a __meta attribute to keep track of the node that an object of
         // data is tied to and whether or not it is in queue to be removed.
         processObject: function (obj, node) {
+
           obj.__meta = {
             node: node,
-            removed: false
+            removed: false,
+            id: this.generateID()
           };
+
+          node.setAttribute("b-id", obj.__meta.id);
 
           return obj;
         },
@@ -687,6 +702,8 @@ funcs.scope.repeat = function ($scope) {
         // append to the end of the container and array.
         push: function (node, obj) {
           var $last = $repeat.list[$repeat.list.length - 1];
+
+          console.log($last, $repeat.meta);
 
           if ($last) {
             funcs.DOM.after(node, $last.__meta.node);
@@ -757,6 +774,18 @@ funcs.scope.repeat = function ($scope) {
           });
 
           return this;
+        },
+
+        // remove a node with a particular ID.
+        remove: function (id) {
+          // in this case, they passed the node they want to delete. No problem.
+          // just get the b-id of it.
+
+          if (typeof id == "object") id = id.getAttribute("b-id");
+          
+          this.filter(function (o) {
+            return o.__meta.id !== id;
+          });
         }
       };
     } else console.warn("Error. Repeat associated with key '" + name + "' does not exist yet.");
@@ -905,7 +934,7 @@ funcs.util = {
       else console.warn("Cannot find property '" + o + "' of object in dot notation.");
     });
 
-    return object || "";
+    return (typeof object !== "object" ? object : "");
   }
 };
 

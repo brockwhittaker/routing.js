@@ -1,0 +1,11 @@
+<div class="message-container">
+  <div class="ind-message" b-repeat="messages" b-name="messages" b-click="deleteMe">
+    <div class="username" b-obj="username"></div>
+    <div class="message" b-obj="message"></div>
+  </div>
+
+  <div class="input-panel">
+    <input type="text" b-name="input" />
+    <button type="button" b-click="submit">Submit</button>
+  </div>
+</div>

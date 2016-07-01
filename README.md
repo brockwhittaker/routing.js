@@ -122,47 +122,67 @@ $scope.events.add(b-name, {
 ```
 
 ##Repeating HTML Dynamically
-If you want to write HTML and have fragments dynamically repeat as you add data, use the `b-repeat` attribute to iteratively create nodes.
+A rather convenient feature in **routing.js** is a dynamic repeater function. You can use the `b-repeat` function to create an empty array that is bound to DOM element creation. That means that whenever you add to this array or take away from it you also add or remove nodes live from the view.
 
 For example let's say you have a simple messaging app and you want a new fragment with a message to appear every time you get data. Below we'll see how to do that. First is the HTML:
 
 ```html
-<div b-repeat="message" b-obj="messages">
-  <div b-prop="username"></div>
-  <div b-prop="message"></div>
+<div b-repeat="messages">
+  <div b-obj="username"></div>
+  <div b-obj="message"></div>
 </div>
 ```
 
-Now in the JavaScript, we can add a listener that will connect to the b-repeat and append the `message` fragment every time you add data to the messages array.
+Now in the JavaScript, we can add the listener that will connect to the b-repeat and append the `message` fragment every time you add data to the messages array.
 
 ```javascript
 route.controller(function ($scope, $data, view) {
   $messages = $scope.repeat("messages");
 
   // appends a new b-repeat='message' fragment below the last.
-  $messages.append({
+  $messages.push({
     username: "brockwhittaker",
     message: "Let's grab coffee at 3?"
   });
 });
 ```
 
-The benefit of using the `b-repeat` feature is that it can be done at any time as long as you append to the object created by `$scope.repeat({{name}})`. Currently you can also use `filter` to remove objects in a similar fashion to Array.prototype.filter:
+We can also remove nodes dependent on object qualifiers using the `filter` function. Let's say for example a user "anon" just got banned from the server and you want to remove all his messages from the view along with the associated data. No problem.
 
 ```javascript
-// filters out anything without an object ID and removes it from the DOM.
-$messages.filter(function (obj) {
-  return !!obj.id;
-});
+route.controller(function ($scope, $data, view) {
+  $messages = $scope.repeat("messages");
+
+  // removes all nodes and data associated with the object.username "anon".
+  $messages.filter(function (o) {
+    return o.username !== "anon";
+  });
+})
 ```
 
-If you want to prepend instead of append, you can use `unshift` to add a node to the beginning of the list.
+Other array operations include `unshift` which works like `$(sel).prepend` in jQuery, and `at`, which appends the element at a specified index.
+
+The benefit of using the `b-repeat` feature is that it can be done at any time as long as you append to the object created by `$scope.repeat(name)`. All event listeners are also added on the fly, which means that you have full functionality with all dynamically created elements. For example below, let's create a message like above but with an event listener that onclick deletes the node.
+
+```html
+<div b-repeat="messages" b-click="deleteMe">
+  <div b-obj="username"></div>
+  <div b-obj="message"></div>
+</div>
+```
 
 ```javascript
-// adds a new node to the beginning of the list.
-$messages.unshift({
-  username: "brockwhittaker",
-  message: "My first message!"
+route.controller(function ($scope, $data, view) {
+  $scope.deleteMe = function () {
+    // removing the clicked on element.
+    this.parentNode.removeChild(this);
+  }
+
+  // create the $messages array access object.
+  $messages = $scope.repeat("messages");
+
+  // create a new DOM element with the information below.
+  $messages.push({ username: "Brock", message: "Hello World!" });
 });
 ```
 

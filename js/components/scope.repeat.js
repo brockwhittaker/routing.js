@@ -1,12 +1,16 @@
 funcs.scope.repeat = function ($scope) {
   var immutable = funcs.util.immutable;
-  
+
   immutable($scope, "repeat", function (name) {
     if ($scope.data.repeat[name]) {
       var $repeat = $scope.data.repeat[name],
           node = $repeat.node;
 
       var operations = {
+        // generate a random ID for nodes.
+        generateID: function () {
+          return Math.round(Math.random() * 100000000000).toString(36) + "_" + new Date().getTime();
+        },
         // clone the node and change b-obj to innerHTML with object values.
         processNode: function (node, obj) {
           // create a new instance of the node.
@@ -20,10 +24,14 @@ funcs.scope.repeat = function ($scope) {
         // add a __meta attribute to keep track of the node that an object of
         // data is tied to and whether or not it is in queue to be removed.
         processObject: function (obj, node) {
+
           obj.__meta = {
             node: node,
-            removed: false
+            removed: false,
+            id: this.generateID()
           };
+
+          node.setAttribute("b-id", obj.__meta.id);
 
           return obj;
         },
@@ -75,6 +83,8 @@ funcs.scope.repeat = function ($scope) {
         // append to the end of the container and array.
         push: function (node, obj) {
           var $last = $repeat.list[$repeat.list.length - 1];
+
+          console.log($last, $repeat.meta);
 
           if ($last) {
             funcs.DOM.after(node, $last.__meta.node);
@@ -145,6 +155,18 @@ funcs.scope.repeat = function ($scope) {
           });
 
           return this;
+        },
+
+        // remove a node with a particular ID.
+        remove: function (id) {
+          // in this case, they passed the node they want to delete. No problem.
+          // just get the b-id of it.
+
+          if (typeof id == "object") id = id.getAttribute("b-id");
+          
+          this.filter(function (o) {
+            return o.__meta.id !== id;
+          });
         }
       };
     } else console.warn("Error. Repeat associated with key '" + name + "' does not exist yet.");

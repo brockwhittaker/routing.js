@@ -16,7 +16,9 @@ funcs.mutation = {
       });
     });
 
-    var config = { attributes: true, childList: true, characterData: true };
+    // a list of what these flags do: https://dom.spec.whatwg.org/#mutationobserver
+    var config = { attributes: true, childList: true, characterData: true, subtree: true };
+
     // pin to the meta.observer object.
     observer.observe(meta.container, config);
 
@@ -39,25 +41,29 @@ funcs.mutation = {
     var events = node.getAttribute("b-events"),
         name = node.getAttribute("b-name");
 
-    // if the scope object for this doesn't exist, create it.
-    funcs.scope.create.key($scope, name);
+    // these require a name because these events are bound to a namespace.
+    if (name) {
+      // if the scope object for this doesn't exist, create it.
+      funcs.scope.create.key($scope, name);
 
-    $scope[name].self.push(node);
+      $scope[name].self.push(node);
 
-    if (events) {
-      // add each event.
-      events.split(/,/).forEach(function (event) {
-        $scope[name][event] = $scope[name][event] || empty;
+      if (events) {
+        // add each event.
+        events.split(/,/).forEach(function (event) {
+          $scope[name][event] = $scope[name][event] || empty;
 
-        // add the event listener for each event.
-        node.addEventListener(event, function (e) {
-          $scope[name][event].call(this, e);
+          // add the event listener for each event.
+          node.addEventListener(event, function (e) {
+            $scope[name][event].call(this, e);
+          });
         });
-      });
+      }
     }
 
     // now check if the b-{{event}} attributes exist with values of callbacks
     // in the scope. Run the callbacks if they exist on event.
+    // these events are not bound to a namespace.
     DOMEvents.forEach(function (event) {
       var cb_name = node.getAttribute("b-" + event);
 
@@ -121,9 +127,7 @@ funcs.mutation = {
 
       allNodes.forEach(function (o) {
         if (o.nodeType === 1) {
-          if (o.hasAttribute("b-name")) {
-            self.addEventsToNode($scope.current, o);
-          }
+          self.addEventsToNode($scope.current, o);
 
           if (o.hasAttribute("b-repeat")) {
             self.addRepeatToNode($scope.current, o);

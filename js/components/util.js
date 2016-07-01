@@ -30,6 +30,6 @@ funcs.util = {
       else console.warn("Cannot find property '" + o + "' of object in dot notation.");
     });
 
-    return object || "";
+    return (typeof object !== "object" ? object : "");
   }
 };

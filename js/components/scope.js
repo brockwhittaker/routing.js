@@ -60,7 +60,10 @@ funcs.scope = {
 
       // creation of a native data object that is bound to the $scope.
       immutable($scope.data, "prop", function (property, key, value) {
-        if (!$scope[property]) funcs.scope.create.key($scope, property);
+        if (!$scope[property]) {
+          funcs.scope.create.key($scope, property);
+          console.warn("The property with name '" + property + "' doesn't exist yet, but was just created.");
+        }
 
         $scope[property].data[key] = value;
 
