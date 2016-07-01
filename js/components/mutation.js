@@ -114,6 +114,27 @@ funcs.mutation = {
   addEvents: function (meta) {
     var self = this;
 
+    // run the self.addEventsToNode and self.addRepeatToNode functions on
+    // the parent and all children nodes that are valid (o.nodeType == 1).
+    var addEventsToAllNodes = function ($scope, parent) {
+      var allNodes = funcs.DOM.parentAndChildren(parent);
+
+      allNodes.forEach(function (o) {
+        if (o.nodeType === 1) {
+          if (o.hasAttribute("b-name")) {
+            self.addEventsToNode($scope.current, o);
+          }
+
+          if (o.hasAttribute("b-repeat")) {
+            self.addRepeatToNode($scope.current, o);
+          }
+        }
+      });
+    };
+
+    // call the observer function to check for changes in the DOM. The callback
+    // returns the observation results which will include .addedNode and
+    // .removedNodes.
     meta.observe = this.observe(meta, function (mutation) {
       var added = mutation.addedNodes;
       var removed = mutation.removedNodes;
@@ -130,24 +151,8 @@ funcs.mutation = {
         self.removeNode($scope.current, $scope.old, removed[x]);
       }
 
-      var addEventsToAllNodes = function (parent) {
-        var allNodes = funcs.DOM.parentAndChildren(parent);
-
-        allNodes.forEach(function (o) {
-          if (o.nodeType === 1) {
-            if (o.hasAttribute("b-name")) {
-              self.addEventsToNode($scope.current, o);
-            }
-
-            if (o.hasAttribute("b-repeat")) {
-              self.addRepeatToNode($scope.current, o);
-            }
-          }
-        });
-      };
-
       for (x = 0; x < added.length; x++) {
-        addEventsToAllNodes(added[x]);
+        addEventsToAllNodes($scope, added[x]);
       }
     });
   }

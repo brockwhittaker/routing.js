@@ -58,18 +58,30 @@ funcs.controller = {
 };
 
 funcs.DOM = {
+  // simple append operation of a valid node to a parent node.
+  // the opposite of prepend.
   append: function (node, parent) {
     parent.appendChild(node);
   },
+  // append a valid node to the start of a parent (before all other children).
   prepend: function (node, parent) {
     parent.insertBefore(node, parent.firstChild);
   },
+  // append a valid node after a valid sibling node.
   after: function (node, sibling) {
     sibling.parentNode.insertBefore(node, sibling.nextSibling);
   },
+  // append a valid node before a valid sibling node.
+  before: function (node, sibling) {
+    sibling.parentNode.insertBefore(node, sibling);
+  },
+  // remove a node from the DOM.
   remove: function (node) {
     node.parentNode.removeChild(node);
   },
+  // check an entire document fragment for b-obj attributes.
+  // then convert dot notation like self.Id to obj["self"]["Id"]
+  // set the value of obj["self"]["Id"] in the document innerHTML.
   fillWithObjectProperties: function (parent, object) {
     var nodes = parent.querySelectorAll("[b-obj]");
 
@@ -83,13 +95,17 @@ funcs.DOM = {
 
     return parent;
   },
+  // get the parent and all children of a node.
   parentAndChildren: function (node) {
     var arr = [node];
 
-    var children = node.childNodes;
+    if (node.querySelectorAll) {
+      var children = node.querySelectorAll("*");
 
-    for (var x = 0; x < children.length; x++) {
-      arr.push(children[x]);
+      for (var x = 0; x < children.length; x++) {
+        arr.push(children[x]);
+      }
+
     }
 
     return arr;
@@ -405,6 +421,27 @@ funcs.mutation = {
   addEvents: function (meta) {
     var self = this;
 
+    // run the self.addEventsToNode and self.addRepeatToNode functions on
+    // the parent and all children nodes that are valid (o.nodeType == 1).
+    var addEventsToAllNodes = function ($scope, parent) {
+      var allNodes = funcs.DOM.parentAndChildren(parent);
+
+      allNodes.forEach(function (o) {
+        if (o.nodeType === 1) {
+          if (o.hasAttribute("b-name")) {
+            self.addEventsToNode($scope.current, o);
+          }
+
+          if (o.hasAttribute("b-repeat")) {
+            self.addRepeatToNode($scope.current, o);
+          }
+        }
+      });
+    };
+
+    // call the observer function to check for changes in the DOM. The callback
+    // returns the observation results which will include .addedNode and
+    // .removedNodes.
     meta.observe = this.observe(meta, function (mutation) {
       var added = mutation.addedNodes;
       var removed = mutation.removedNodes;
@@ -421,24 +458,8 @@ funcs.mutation = {
         self.removeNode($scope.current, $scope.old, removed[x]);
       }
 
-      var addEventsToAllNodes = function (parent) {
-        var allNodes = funcs.DOM.parentAndChildren(parent);
-
-        allNodes.forEach(function (o) {
-          if (o.nodeType === 1) {
-            if (o.hasAttribute("b-name")) {
-              self.addEventsToNode($scope.current, o);
-            }
-
-            if (o.hasAttribute("b-repeat")) {
-              self.addRepeatToNode($scope.current, o);
-            }
-          }
-        });
-      };
-
       for (x = 0; x < added.length; x++) {
-        addEventsToAllNodes(added[x]);
+        addEventsToAllNodes($scope, added[x]);
       }
     });
   }
@@ -506,7 +527,8 @@ funcs.scope = {
 
     // create a new scope property.
     scope: function (meta, $scope, routes) {
-      var immutable = funcs.util.immutable;
+      var immutable = funcs.util.immutable,
+          self = this;
 
       // make `event` in $scope immutable as well as `add` inside of
       // $scope.event. Also add `data` inside $scope for random user data.
@@ -527,6 +549,7 @@ funcs.scope = {
       // create event object for adding event functions.
       immutable($scope, "event", {});
 
+      funcs.scope.repeat($scope);
 
       // create the $scope.event.add function to add custom events.
       immutable($scope.event, "add",
@@ -548,57 +571,6 @@ funcs.scope = {
           // make thisArg the current state.
         }).bind($scope)
       );
-
-      immutable($scope, "repeat", function (name) {
-        if ($scope.data.repeat[name]) {
-          var $repeat = $scope.data.repeat[name],
-              node = $repeat.node;
-
-          return {
-            push: function (obj) {
-              // create a new instance of the node.
-              node = node.cloneNode(true);
-              // get values from b-obj and fill in innerHTML with the values.
-              node = funcs.DOM.fillWithObjectProperties(node, obj);
-
-              // add internal __meta property for keeping track of the node it
-              // is associated with and whether it's been removed.
-              obj.__meta = {
-                node: node,
-                removed: false
-              };
-
-              // push to the list.
-              $repeat.list.push(obj);
-
-              if ($repeat.meta.prev) {
-                funcs.DOM.after(node, $repeat.meta.prev);
-              } else {
-                funcs.DOM.prepend(node, $repeat.meta.parent);
-              }
-
-              return this;
-            },
-            filter: function (callback) {
-              $repeat.list.forEach(function (o) {
-                console.log(callback(o), o);
-                if (callback(o) === false) {
-                  o.__meta.removed = true;
-                }
-              });
-
-              $repeat.list = $repeat.list.filter(function (o) {
-                if (o.__meta.removed) {
-                  funcs.DOM.remove(o.__meta.node);
-                  return false;
-                } else return true;
-              });
-
-              return this;
-            }
-          };
-        } else console.warn("Error. Repeat associated with key '" + name + "' does not exist yet.");
-      });
 
       // creation of a native data object that is bound to the $scope.
       immutable($scope.data, "prop", function (property, key, value) {
@@ -637,6 +609,159 @@ The $scope.data.repeat[name] is an object like:
 
 Where the container is cloned and the list is modified.
 */
+
+funcs.scope.repeat = function ($scope) {
+  var immutable = funcs.util.immutable;
+  
+  immutable($scope, "repeat", function (name) {
+    if ($scope.data.repeat[name]) {
+      var $repeat = $scope.data.repeat[name],
+          node = $repeat.node;
+
+      var operations = {
+        // clone the node and change b-obj to innerHTML with object values.
+        processNode: function (node, obj) {
+          // create a new instance of the node.
+          node = node.cloneNode(true);
+          // get values from b-obj and fill in innerHTML with the values.
+          funcs.DOM.fillWithObjectProperties(node, obj);
+
+          return node;
+        },
+
+        // add a __meta attribute to keep track of the node that an object of
+        // data is tied to and whether or not it is in queue to be removed.
+        processObject: function (obj, node) {
+          obj.__meta = {
+            node: node,
+            removed: false
+          };
+
+          return obj;
+        },
+
+        // get the nearest valid sibling of an object.
+        validSibling: function (index) {
+          var $sibling,
+              isParent = false;
+
+          // check if sibling at desired index exists. This is most ideal.
+          if ($repeat.list[index]) {
+            $sibling = $repeat.list[index].__meta.node;
+          // otherwise get the last element in the array (length - 1).
+          } else if ($repeat.list[$repeat.list.length - 1]) {
+            $sibling = $repeat.list[$repeat.list.length - 1].__meta.node;
+          // otherwise, get the meta.prev of the original inserted node.
+          } else if ($repeat.list.meta.prev) {
+            $sibling = $repeat.list.meta.prev;
+          // and last ditch effort, get the parent node of the original node.
+          } else {
+            isParent = true;
+            $sibling = $repeat.list.meta.parent;
+          }
+
+          // tell whether or not the retrieved node is the same level or
+          // if it is a parent node.
+          return { node: $sibling, parent: isParent };
+        },
+
+        // a small wrapper function for processing the node and the object.
+        procedural: function (node, obj) {
+          node = this.processNode(node, obj);
+          obj = this.processObject(obj, node);
+
+          return { node: node, object: obj };
+        },
+
+        // add to the beginning of the container and array.
+        prepend: function (node, obj) {
+          $repeat.list.unshift(obj);
+
+          if ($repeat.meta.prev) {
+            funcs.DOM.after(node, $repeat.meta.prev);
+          } else {
+            funcs.DOM.prepend(node, $repeat.meta.parent);
+          }
+        },
+
+        // append to the end of the container and array.
+        push: function (node, obj) {
+          var $last = $repeat.list[$repeat.list.length - 1];
+
+          if ($last) {
+            funcs.DOM.after(node, $last.__meta.node);
+          } else if ($repeat.meta.prev) {
+            funcs.DOM.after(node, $repeat.meta.prev);
+          } else {
+            funcs.DOM.append(node, $repeat.meta.parent);
+          }
+
+          $repeat.list.push(obj);
+        },
+
+        // add at a desired index in the container and array.
+        at: function (node, obj, index) {
+          var $index = $repeat.list[index];
+
+          // if the index exists, splice and add the node without removing any.
+          if ($index) {
+            $repeat.list.splice(index, 0, node);
+            funcs.DOM.before(node, $repeat.list[index + 1].__meta.node);
+          // otherwise, use the push function to push to wherever the end is.
+          } else {
+            $repeat.list.push(obj);
+            this.push(node, obj);
+
+            console.warn("Error. No node with index '" + index + "'. Node pushed instead.");
+          }
+        }
+      };
+
+      return {
+        unshift: function (obj) {
+          var comps = operations.procedural(node, obj);
+          operations.prepend(comps.node, comps.object);
+
+          return this;
+        },
+
+        at: function (obj, index) {
+          var comps = operations.procedural(node, obj);
+          operations.at(comps.node, comps.object, index);
+
+          return this;
+        },
+
+        push: function (obj) {
+          var comps = operations.procedural(node, obj);
+          operations.push(comps.node, comps.object);
+
+          return this;
+        },
+
+        // a filter function to iterate through all objects, check if they
+        // qualify to continue existing and if not, remove them from the
+        // array and the DOM.
+        filter: function (callback) {
+          $repeat.list.forEach(function (o) {
+            if (callback(o) === false) {
+              o.__meta.removed = true;
+            }
+          });
+
+          $repeat.list = $repeat.list.filter(function (o) {
+            if (o.__meta.removed) {
+              funcs.DOM.remove(o.__meta.node);
+              return false;
+            } else return true;
+          });
+
+          return this;
+        }
+      };
+    } else console.warn("Error. Repeat associated with key '" + name + "' does not exist yet.");
+  });
+};
 
 funcs.transition = {
   /*

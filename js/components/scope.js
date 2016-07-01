@@ -13,7 +13,8 @@ funcs.scope = {
 
     // create a new scope property.
     scope: function (meta, $scope, routes) {
-      var immutable = funcs.util.immutable;
+      var immutable = funcs.util.immutable,
+          self = this;
 
       // make `event` in $scope immutable as well as `add` inside of
       // $scope.event. Also add `data` inside $scope for random user data.
@@ -34,6 +35,7 @@ funcs.scope = {
       // create event object for adding event functions.
       immutable($scope, "event", {});
 
+      funcs.scope.repeat($scope);
 
       // create the $scope.event.add function to add custom events.
       immutable($scope.event, "add",
@@ -55,57 +57,6 @@ funcs.scope = {
           // make thisArg the current state.
         }).bind($scope)
       );
-
-      immutable($scope, "repeat", function (name) {
-        if ($scope.data.repeat[name]) {
-          var $repeat = $scope.data.repeat[name],
-              node = $repeat.node;
-
-          return {
-            push: function (obj) {
-              // create a new instance of the node.
-              node = node.cloneNode(true);
-              // get values from b-obj and fill in innerHTML with the values.
-              node = funcs.DOM.fillWithObjectProperties(node, obj);
-
-              // add internal __meta property for keeping track of the node it
-              // is associated with and whether it's been removed.
-              obj.__meta = {
-                node: node,
-                removed: false
-              };
-
-              // push to the list.
-              $repeat.list.push(obj);
-
-              if ($repeat.meta.prev) {
-                funcs.DOM.after(node, $repeat.meta.prev);
-              } else {
-                funcs.DOM.prepend(node, $repeat.meta.parent);
-              }
-
-              return this;
-            },
-            filter: function (callback) {
-              $repeat.list.forEach(function (o) {
-                console.log(callback(o), o);
-                if (callback(o) === false) {
-                  o.__meta.removed = true;
-                }
-              });
-
-              $repeat.list = $repeat.list.filter(function (o) {
-                if (o.__meta.removed) {
-                  funcs.DOM.remove(o.__meta.node);
-                  return false;
-                } else return true;
-              });
-
-              return this;
-            }
-          };
-        } else console.warn("Error. Repeat associated with key '" + name + "' does not exist yet.");
-      });
 
       // creation of a native data object that is bound to the $scope.
       immutable($scope.data, "prop", function (property, key, value) {
