@@ -121,6 +121,51 @@ $scope.events.add(b-name, {
 });
 ```
 
+##Repeating HTML Dynamically
+If you want to write HTML and have fragments dynamically repeat as you add data, use the `b-repeat` attribute to iteratively create nodes.
+
+For example let's say you have a simple messaging app and you want a new fragment with a message to appear every time you get data. Below we'll see how to do that. First is the HTML:
+
+```html
+<div b-repeat="message" b-obj="messages">
+  <div b-prop="username"></div>
+  <div b-prop="message"></div>
+</div>
+```
+
+Now in the JavaScript, we can add a listener that will connect to the b-repeat and append the `message` fragment every time you add data to the messages array.
+
+```javascript
+route.controller(function ($scope, $data, view) {
+  $messages = $scope.repeat("messages");
+
+  // appends a new b-repeat='message' fragment below the last.
+  $messages.append({
+    username: "brockwhittaker",
+    message: "Let's grab coffee at 3?"
+  });
+});
+```
+
+The benefit of using the `b-repeat` feature is that it can be done at any time as long as you append to the object created by `$scope.repeat({{name}})`. Currently you can also use `filter` to remove objects in a similar fashion to Array.prototype.filter:
+
+```javascript
+// filters out anything without an object ID and removes it from the DOM.
+$messages.filter(function (obj) {
+  return !!obj.id;
+});
+```
+
+If you want to prepend instead of append, you can use `unshift` to add a node to the beginning of the list.
+
+```javascript
+// adds a new node to the beginning of the list.
+$messages.unshift({
+  username: "brockwhittaker",
+  message: "My first message!"
+});
+```
+
 ##Storing Object-Level Data
 If you want to store data that is associated with a particular `b-name` object, you can use the `$scope.data` assignment which sets a key value pair like below:
 
