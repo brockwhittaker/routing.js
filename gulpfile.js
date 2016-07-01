@@ -3,26 +3,26 @@ var concat = require("gulp-concat");
 var uglify = require("gulp-uglify");
 
 var files = [
-  "lib/components/.init.js",
-  "lib/components/ajax.js",
-  "lib/components/config.js",
-  "lib/components/controller.js",
-  "lib/components/DOM.js",
-  "lib/components/hash.js",
-  "lib/components/init.js",
-  "lib/components/load.js",
-  "lib/components/mutation.js",
-  "lib/components/routes.js",
-  "lib/components/scope.js",
-  "lib/components/transition.js",
-  "lib/components/util.js",
-  "lib/components/view.js",
-  "lib/build/RouteConfig.js"
+  "js/components/.init.js",
+  "js/components/ajax.js",
+  "js/components/config.js",
+  "js/components/controller.js",
+  "js/components/DOM.js",
+  "js/components/hash.js",
+  "js/components/init.js",
+  "js/components/load.js",
+  "js/components/mutation.js",
+  "js/components/routes.js",
+  "js/components/scope.js",
+  "js/components/transition.js",
+  "js/components/util.js",
+  "js/components/view.js",
+  "js/build/RouteConfig.js"
 ];
 
 gulp.task("concat", function () {
-  var top = gulp.src("./lib/build/top.js"),
-      bottom = gulp.src("./lib/build/bottom.js");
+  var top = gulp.src("./js/build/top.js"),
+      bottom = gulp.src("./js/build/bottom.js");
 
   return gulp
     .src(files)
