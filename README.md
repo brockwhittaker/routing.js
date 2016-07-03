@@ -67,7 +67,7 @@ All nodes are placed inside the `$scope` object in the format `$scope[{{b-name}}
 ##Adding Event Listeners
 Event listeners can be added in a ton of different ways, many with different features. Below is a list of those ways and the pros/cons associated with them.
 
-1. Primitive Assignment.
+###Primitive Assignment.
 
 Each object you create using the `b-name` attribute will have its own attribute in `$scope` in the structure `$scope[b-name]`. Inside that is the following structure:
 
@@ -87,7 +87,9 @@ $scope[b-name].click = function () {
 };
 ```
 
-And that changes the click event for `b-name`. This is not fully recommended however. The inherit issue with doing this is that if the `b-name` node selection doesn't exist yet, it will throw an error because `$scope[b-name]` doesn't exist yet. This also will mean that you can't apply the event to future instances of `b-name`. In order to use this syntax safely, use the `$scope.get(b-name)` syntax like below:
+### Safe Assignment
+
+This is not fully recommended however. The inherit issue with doing this is that if the `b-name` node selection doesn't exist yet, it will throw an error because `$scope[b-name]` doesn't exist yet. This also will mean that you can't apply the event to future instances of `b-name`. In order to use this syntax safely, use the `$scope.get(b-name)` syntax like below:
 
 ```javascript
 $scope.get(b-name).click = function () {
@@ -105,7 +107,9 @@ $scope.events.add(b-name, "click", function () {
 })
 ```
 
-Or multiple events using the object syntax:
+###Multiple Assignment
+
+You can assign multiple event listeners easily with the object notation to a `b-name`.
 
 ```javascript
 $scope.events.add(b-name, {

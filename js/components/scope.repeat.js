@@ -84,8 +84,6 @@ funcs.scope.repeat = function ($scope) {
         push: function (node, obj) {
           var $last = $repeat.list[$repeat.list.length - 1];
 
-          console.log($last, $repeat.meta);
-
           if ($last) {
             funcs.DOM.after(node, $last.__meta.node);
           } else if ($repeat.meta.prev) {
@@ -163,7 +161,7 @@ funcs.scope.repeat = function ($scope) {
           // just get the b-id of it.
 
           if (typeof id == "object") id = id.getAttribute("b-id");
-          
+
           this.filter(function (o) {
             return o.__meta.id !== id;
           });
