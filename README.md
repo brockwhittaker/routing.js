@@ -17,7 +17,7 @@ Once you've created the appropriate files, link to it as such:
 
 ```javascript
 // create a new route.
-route.add("home", "../path/to/home.html", "../path/to/js.html");
+route.add("home", "../path/to/home.html", "../path/to/js.js");
 ```
 
 Great! You've created your first route. From here, let's create a basic app. A user should be able to type their name into an input box and have it appear in the format "Hi, your name is {{name}}." below the input.

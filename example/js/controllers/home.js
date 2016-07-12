@@ -1,13 +1,11 @@
 route.controller(function ($scope, $data, view) {
-  $scope.deleteMe = function () {
-    console.log(this);
-    $messages.remove(this);
-  };
-
   $scope.submit = function () {
     var msg = $scope.input.self[0].value;
-    console.log(msg);
     $messages.push({ username: "brock", message: msg });
+  };
+
+  $scope.deleteMe = function () {
+    $messages.remove(this);
   };
 
   var messages = [
@@ -19,8 +17,6 @@ route.controller(function ($scope, $data, view) {
   ];
 
   $messages = $scope.repeat("messages");
-
-  window.$scope = $scope;
 
   messages.forEach(function (o) {
     $messages.push(o);

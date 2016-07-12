@@ -2,7 +2,7 @@ funcs.hash = {
   public: {
     // this decompiles the hash into two components: the view and the pseudo-get
     // parameters. This information is then returned as an object.
-    get: function () {
+    get: function (val) {
       // get the location.hash without the hash (#) and the forward slash (/).
       var hash = window.location.hash.substr(2);
       // match everything alphanumeric, -, and _.
@@ -29,10 +29,16 @@ funcs.hash = {
 
       // if at least a view exists, return what was gotten.
       if (view) {
-        return {
-          view: view[0],
-          get: map
-        };
+        // if a val is specified, return the map[val]
+        if (typeof val !== "undefined" && val !== null) {
+          return map[val];
+        // otherwise return the view and map.
+        } else {
+          return {
+            view: view[0],
+            get: map
+          };
+        }
       // otherwise return false becasue hash retrieval was unsuccessful.
       } else return false;
     },

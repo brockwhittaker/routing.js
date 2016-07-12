@@ -52,8 +52,13 @@ funcs.config = function (settings, meta) {
 funcs.controller = {
   // this gives the scope to users along with access to the container node.
   scope: function (callback, meta) {
-    var $scope = meta.routes[meta.view.current].state;
-    callback($scope, $scope.data, meta.container);
+    var route = meta.routes[meta.view.current],
+        $scope = route.state;
+    callback($scope, $scope.data, {
+      container: meta.container,
+      loaded: route.hasLoaded ? true : false,
+      loads: route.loads
+    });
   }
 };
 
@@ -83,18 +88,59 @@ funcs.DOM = {
   // then convert dot notation like self.Id to obj["self"]["Id"]
   // set the value of obj["self"]["Id"] in the document innerHTML.
   fillWithObjectProperties: function (parent, object) {
-    var nodes = parent.querySelectorAll("[b-obj]");
+    var nodes = parent.querySelectorAll("[b-obj],[b-repeat-in]");
 
-    var path, value;
+    var path, src, value, srcValue, repeatIn;
+
     for (var x = 0; x < nodes.length; x++) {
-      path = nodes[x].getAttribute("b-obj");
-      value = funcs.util.dotToObject(object, path);
+      if (nodes[x].hasAttribute("b-repeat-in")) {
+        var prop = nodes[x].getAttribute("b-repeat-in");
 
-      nodes[x].innerHTML = value;
+
+        if (!funcs.util.isSample(nodes[x]) && object[prop]) {
+          object[prop].forEach((function (o, i) {
+            var clone = nodes[x].cloneNode(true);
+
+            clone.removeAttribute("b-repeat-in");
+
+            clone.repeat = o;
+            clone.index = i;
+            this.fillWithObjectProperties(clone, o);
+            // console.log(clone.repeat, clone, nodes[x]);
+            try {
+              funcs.DOM.append(clone, nodes[x].parentNode);
+            } catch (e) { console.log(e); }
+          }).bind(this));
+        }
+
+        try {
+          funcs.DOM.remove(nodes[x]);
+        } catch (e) {}
+      } else if (funcs.util.isSample(nodes[x])) {
+        funcs.DOM.remove(nodes[x]);
+      } else if (
+        (nodes[x].hasAttribute("b-obj")|| nodes[x].hasAttribute("b-src")) &&
+        !nodes[x].hasAttribute("b-repeated-in")) {
+
+        path = nodes[x].getAttribute("b-obj");
+        src = nodes[x].getAttribute("b-src");
+
+        if (path) {
+          value = funcs.util.dotToObject(object, path);
+          nodes[x].innerHTML = value;
+        }
+
+        if (src) {
+          srcValue = funcs.util.dotToObject(object, src);
+          nodes[x].setAttribute("src", srcValue);          
+        }
+
+      }
     }
 
     return parent;
   },
+
   // get the parent and all children of a node.
   parentAndChildren: function (node) {
     var arr = [node];
@@ -109,6 +155,24 @@ funcs.DOM = {
     }
 
     return arr;
+  },
+  allParents: function (node) {
+    var parents = [];
+
+    while (node.parentNode) {
+      parents.unshift(node.parentNode);
+      node = node.parentNode;
+    }
+
+    return parents;
+  },
+  hasRepeatParent: function (node) {
+    while (node.parentNode && node.parentNode.hasAttribute) {
+      if (node.parentNode.hasAttribute("b-repeat")) return true;
+      else node = node.parentNode;
+    }
+
+    return false;
   }
 };
 
@@ -116,7 +180,7 @@ funcs.hash = {
   public: {
     // this decompiles the hash into two components: the view and the pseudo-get
     // parameters. This information is then returned as an object.
-    get: function () {
+    get: function (val) {
       // get the location.hash without the hash (#) and the forward slash (/).
       var hash = window.location.hash.substr(2);
       // match everything alphanumeric, -, and _.
@@ -143,10 +207,16 @@ funcs.hash = {
 
       // if at least a view exists, return what was gotten.
       if (view) {
-        return {
-          view: view[0],
-          get: map
-        };
+        // if a val is specified, return the map[val]
+        if (typeof val !== "undefined" && val !== null) {
+          return map[val];
+        // otherwise return the view and map.
+        } else {
+          return {
+            view: view[0],
+            get: map
+          };
+        }
       // otherwise return false becasue hash retrieval was unsuccessful.
       } else return false;
     },
@@ -348,12 +418,16 @@ funcs.mutation = {
     var events = node.getAttribute("b-events"),
         name = node.getAttribute("b-name");
 
+
+
     // these require a name because these events are bound to a namespace.
     if (name) {
       // if the scope object for this doesn't exist, create it.
       funcs.scope.create.key($scope, name);
 
-      $scope[name].self.push(node);
+      if (document.body.contains(node) && $scope[name].self.indexOf(node) == -1) {
+        $scope[name].self.push(node);
+      }
 
       if (events) {
         // add each event.
@@ -387,6 +461,7 @@ funcs.mutation = {
     var repeatName = node.getAttribute("b-repeat"),
         object = node.getAttribute("b-obj");
 
+    node.setAttribute("b-repeated", node.getAttribute("b-repeat"));
     node.removeAttribute("b-repeat");
 
     funcs.util.immutable($scope.data.repeat, repeatName, {
@@ -399,6 +474,12 @@ funcs.mutation = {
     });
 
     funcs.DOM.remove(node);
+
+    if (name) {
+      $scope[name].self = $scope[name].self.filter(function (o) {
+        return !node.isEqualNode(o);
+      });
+    }
   },
 
   // remove nodes that
@@ -414,7 +495,7 @@ funcs.mutation = {
       // filter out any nodes that are the same as the ones that are being
       // removed from the DOM currently.
       $elem.self = $elem.self.filter(function (o) {
-        return (!node.isSameNode(o));
+        return !node.isSameNode(o);
       });
 
       // make immutable again so that users cannot delete $scope[key].self.
@@ -432,12 +513,16 @@ funcs.mutation = {
     var addEventsToAllNodes = function ($scope, parent) {
       var allNodes = funcs.DOM.parentAndChildren(parent);
 
-      allNodes.forEach(function (o) {
+      allNodes.forEach(function (o, i) {
         if (o.nodeType === 1) {
           self.addEventsToNode($scope.current, o);
 
           if (o.hasAttribute("b-repeat")) {
             self.addRepeatToNode($scope.current, o);
+          }
+
+          if (o.hasAttribute("b-repeat-in")) {
+            //self.addRepeatInToNode($scope.current, o, i);
           }
         }
       });
@@ -487,7 +572,9 @@ funcs.routes = {
           html: null
         },
         // the scope/model of the view.
-        state: {}
+        state: {},
+        hasLoaded: false,
+        loads: 0
       };
 
       var $scope = meta.routes[name].state;
@@ -501,8 +588,15 @@ funcs.routes = {
   deploy: function (meta, name, callback) {
     var route = meta.routes[name];
 
+    if (route.hasLoaded === false) route.hasLoaded = 0;
+    else if (route.hasLoaded === 0) route.hasLoaded = true;
+
+    route.loads++;
+
     if (route) {
       funcs.hash.public.set.view(name);
+
+      funcs.scope.removeAllNodeRefs(meta.routes[name].state);
 
       funcs.load.page(meta, route, function (response) {
         console.log("loaded route '" + name + "'!");
@@ -526,6 +620,12 @@ funcs.scope = {
 
         immutable($scope[key], "data", {});
         immutable($scope[key], "self", []);
+        immutable($scope[key], "each", function (callback) {
+          var arr = $scope[key].self || [];
+          arr.forEach(function (o, i) {
+            callback(o, i, $scope[key].self);
+          });
+        });
       }
     },
 
@@ -588,7 +688,7 @@ funcs.scope = {
         return $scope[property].data[key];
       });
 
-      immutable($scope.data, "transfer", function (key, view) {
+      immutable($scope.data, "transfer", function (view, key) {
         var data = $scope.data[key];
 
         if (typeof data == "undefined" || data === null)
@@ -599,7 +699,21 @@ funcs.scope = {
       });
 
       immutable($scope.data, "repeat", {});
+
+      funcs.scope.toolkit($scope);
     }
+  },
+
+  removeAllNodeRefs: function ($scope) {
+    for (var x in $scope) {
+      if ($scope[x].self) {
+        funcs.util.tempUnlock($scope[x], "self", function (obj) {
+          obj.self = [];
+        });
+      }
+    }
+
+    return $scope;
   }
 };
 
@@ -623,7 +737,8 @@ funcs.scope.repeat = function ($scope) {
   immutable($scope, "repeat", function (name) {
     if ($scope.data.repeat[name]) {
       var $repeat = $scope.data.repeat[name],
-          node = $repeat.node;
+          node = $repeat.node,
+          bName = $repeat.name;
 
       var operations = {
         // generate a random ID for nodes.
@@ -634,6 +749,7 @@ funcs.scope.repeat = function ($scope) {
         processNode: function (node, obj) {
           // create a new instance of the node.
           node = node.cloneNode(true);
+          node.repeat = obj;
           // get values from b-obj and fill in innerHTML with the values.
           funcs.DOM.fillWithObjectProperties(node, obj);
 
@@ -681,8 +797,8 @@ funcs.scope.repeat = function ($scope) {
         },
 
         // a small wrapper function for processing the node and the object.
-        procedural: function (node, obj) {
-          node = this.processNode(node, obj);
+        procedural: function (obj) {
+          var node = this.processNode($scope.data.repeat[name].node, obj);
           obj = this.processObject(obj, node);
 
           return { node: node, object: obj };
@@ -697,6 +813,8 @@ funcs.scope.repeat = function ($scope) {
           } else {
             funcs.DOM.prepend(node, $repeat.meta.parent);
           }
+
+          return node;
         },
 
         // append to the end of the container and array.
@@ -712,6 +830,8 @@ funcs.scope.repeat = function ($scope) {
           }
 
           $repeat.list.push(obj);
+
+          return node;
         },
 
         // add at a desired index in the container and array.
@@ -729,27 +849,35 @@ funcs.scope.repeat = function ($scope) {
 
             console.warn("Error. No node with index '" + index + "'. Node pushed instead.");
           }
+
+          return node;
         }
       };
 
       return {
-        unshift: function (obj) {
-          var comps = operations.procedural(node, obj);
-          operations.prepend(comps.node, comps.object);
+        unshift: function (obj, callback) {
+          var comps = operations.procedural(obj);
+          node = operations.prepend(comps.node, comps.object);
+
+          if (callback) callback(node);
 
           return this;
         },
 
-        at: function (obj, index) {
-          var comps = operations.procedural(node, obj);
-          operations.at(comps.node, comps.object, index);
+        at: function (obj, index, callback) {
+          var comps = operations.procedural(obj);
+          node = operations.at(comps.node, comps.object, index);
+
+          if (callback) callback(node);
 
           return this;
         },
 
-        push: function (obj) {
-          var comps = operations.procedural(node, obj);
-          operations.push(comps.node, comps.object);
+        push: function (obj, callback) {
+          var comps = operations.procedural(obj);
+          node = operations.push(comps.node, comps.object);
+
+          if (callback) callback(node);
 
           return this;
         },
@@ -790,6 +918,37 @@ funcs.scope.repeat = function ($scope) {
   });
 };
 
+funcs.scope.toolkit = function ($scope) {
+  var utils = {
+    setVals: function ($scope, prop, obj) {
+      if (typeof obj == "object") {
+        for (var x in obj) {
+          $scope.get(x).self.forEach(function (o) {
+            o[prop] = obj[x];
+          });
+        }
+      }
+    },
+    getVals: function (nodes, attr) {
+      return nodes[0][prop];
+    }
+  };
+
+  var immutable = funcs.util.immutable;
+
+  immutable($scope, "edit", {
+    text: function (obj) {
+      utils.setVals($scope, "innerText", obj);
+      return this;
+    },
+
+    html: function (obj) {
+      utils.setVals($scope, "innerHTML", obj);
+      return this;
+    }
+  });
+};
+
 funcs.transition = {
   /*
     TRANSITION STEPS:
@@ -812,8 +971,7 @@ funcs.transition = {
 
     meta.copy = meta.container.cloneNode(true);
     // remove the ID because no two elements should have the same id.
-    meta.copy.id = "";
-    meta.copy.className = "";
+    meta.copy.id = "clone_node";
   },
 
   // a func to make the meta.copy exist in the same place as the current
@@ -924,23 +1082,63 @@ funcs.util = {
     });
   },
 
+  tempUnlock: function (obj, key, callback) {
+    this.mutable(obj, key);
+    callback(obj);
+    this.immutable(obj, key);
+  },
+
   dotToObject: function (object, path) {
     path = path.split(/\./);
 
     path.forEach(function (o) {
       if (object[o]) object = object[o];
-      else console.warn("Cannot find property '" + o + "' of object in dot notation.");
+      // else console.warn("Cannot find property '" + o + "' of object in dot notation.");
     });
 
-    return (typeof object !== "object" ? object : "");
+    return (typeof object !== "object" || Array.isArray(object)) ? object : "";
+  },
+
+  findNearestParentRepeat: function (node) {
+    var parent;
+
+    while (node.parentNode) {
+      if (node.parentNode.repeat) parent = node.parentNode;
+      node = node.parentNode;
+    }
+
+    return parent;
+  },
+
+  isSample: function (node) {
+    var parent;
+
+    while (node.parentNode) {
+      if (node.parentNode.hasAttribute("b-repeat")) return true;
+      node = node.parentNode;
+    }
+
+    return false;
   }
 };
 
 funcs.view = {
 
   new: function (name, meta) {
+    var utils = {
+      replaceNamespace: function (node, name) {
+        // remove the old namespace.
+        node.className = meta.container.className.split(/\s+/g).filter(function (o) {
+          return !/-namespace/g.test(o) && o;
+        }).concat(name + "-namespace").join(" ");
+
+        return node;
+      }
+    };
+
     // if the new view is different from the old view, run the transition.
     if (name !== meta.view.current && meta.view.current !== null && meta.routes[name]) {
+      var $scope = meta.routes[meta.view.current].state;
 
       // record the view that was transitioned from.
       meta.view.old = meta.view.current;
@@ -953,6 +1151,8 @@ funcs.view = {
       funcs.hash.public.set.view(name);
       // run pre-transition procedural (create copy, hide original).
       funcs.transition.before(meta);
+
+      meta.container = utils.replaceNamespace(meta.container, name);
 
       // deploy the new route and provide a callback when it's done.
       funcs.routes.deploy(meta, name, function () {
@@ -982,6 +1182,8 @@ funcs.view = {
       // set the current view.
       meta.view.current = name;
       meta.animation.inProgress = true;
+
+      meta.container = utils.replaceNamespace(meta.container, name);
 
       funcs.routes.deploy(meta, name, function () {
         funcs.transition.callback.after(meta);

@@ -24,18 +24,59 @@ funcs.DOM = {
   // then convert dot notation like self.Id to obj["self"]["Id"]
   // set the value of obj["self"]["Id"] in the document innerHTML.
   fillWithObjectProperties: function (parent, object) {
-    var nodes = parent.querySelectorAll("[b-obj]");
+    var nodes = parent.querySelectorAll("[b-obj],[b-repeat-in]");
 
-    var path, value;
+    var path, src, value, srcValue, repeatIn;
+
     for (var x = 0; x < nodes.length; x++) {
-      path = nodes[x].getAttribute("b-obj");
-      value = funcs.util.dotToObject(object, path);
+      if (nodes[x].hasAttribute("b-repeat-in")) {
+        var prop = nodes[x].getAttribute("b-repeat-in");
 
-      nodes[x].innerHTML = value;
+
+        if (!funcs.util.isSample(nodes[x]) && object[prop]) {
+          object[prop].forEach((function (o, i) {
+            var clone = nodes[x].cloneNode(true);
+
+            clone.removeAttribute("b-repeat-in");
+
+            clone.repeat = o;
+            clone.index = i;
+            this.fillWithObjectProperties(clone, o);
+            // console.log(clone.repeat, clone, nodes[x]);
+            try {
+              funcs.DOM.append(clone, nodes[x].parentNode);
+            } catch (e) { console.log(e); }
+          }).bind(this));
+        }
+
+        try {
+          funcs.DOM.remove(nodes[x]);
+        } catch (e) {}
+      } else if (funcs.util.isSample(nodes[x])) {
+        funcs.DOM.remove(nodes[x]);
+      } else if (
+        (nodes[x].hasAttribute("b-obj")|| nodes[x].hasAttribute("b-src")) &&
+        !nodes[x].hasAttribute("b-repeated-in")) {
+
+        path = nodes[x].getAttribute("b-obj");
+        src = nodes[x].getAttribute("b-src");
+
+        if (path) {
+          value = funcs.util.dotToObject(object, path);
+          nodes[x].innerHTML = value;
+        }
+
+        if (src) {
+          srcValue = funcs.util.dotToObject(object, src);
+          nodes[x].setAttribute("src", srcValue);          
+        }
+
+      }
     }
 
     return parent;
   },
+
   // get the parent and all children of a node.
   parentAndChildren: function (node) {
     var arr = [node];
@@ -50,5 +91,23 @@ funcs.DOM = {
     }
 
     return arr;
+  },
+  allParents: function (node) {
+    var parents = [];
+
+    while (node.parentNode) {
+      parents.unshift(node.parentNode);
+      node = node.parentNode;
+    }
+
+    return parents;
+  },
+  hasRepeatParent: function (node) {
+    while (node.parentNode && node.parentNode.hasAttribute) {
+      if (node.parentNode.hasAttribute("b-repeat")) return true;
+      else node = node.parentNode;
+    }
+
+    return false;
   }
 };

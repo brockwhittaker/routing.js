@@ -4,7 +4,8 @@ funcs.scope.repeat = function ($scope) {
   immutable($scope, "repeat", function (name) {
     if ($scope.data.repeat[name]) {
       var $repeat = $scope.data.repeat[name],
-          node = $repeat.node;
+          node = $repeat.node,
+          bName = $repeat.name;
 
       var operations = {
         // generate a random ID for nodes.
@@ -15,6 +16,7 @@ funcs.scope.repeat = function ($scope) {
         processNode: function (node, obj) {
           // create a new instance of the node.
           node = node.cloneNode(true);
+          node.repeat = obj;
           // get values from b-obj and fill in innerHTML with the values.
           funcs.DOM.fillWithObjectProperties(node, obj);
 
@@ -62,8 +64,8 @@ funcs.scope.repeat = function ($scope) {
         },
 
         // a small wrapper function for processing the node and the object.
-        procedural: function (node, obj) {
-          node = this.processNode(node, obj);
+        procedural: function (obj) {
+          var node = this.processNode($scope.data.repeat[name].node, obj);
           obj = this.processObject(obj, node);
 
           return { node: node, object: obj };
@@ -78,6 +80,8 @@ funcs.scope.repeat = function ($scope) {
           } else {
             funcs.DOM.prepend(node, $repeat.meta.parent);
           }
+
+          return node;
         },
 
         // append to the end of the container and array.
@@ -93,6 +97,8 @@ funcs.scope.repeat = function ($scope) {
           }
 
           $repeat.list.push(obj);
+
+          return node;
         },
 
         // add at a desired index in the container and array.
@@ -110,27 +116,35 @@ funcs.scope.repeat = function ($scope) {
 
             console.warn("Error. No node with index '" + index + "'. Node pushed instead.");
           }
+
+          return node;
         }
       };
 
       return {
-        unshift: function (obj) {
-          var comps = operations.procedural(node, obj);
-          operations.prepend(comps.node, comps.object);
+        unshift: function (obj, callback) {
+          var comps = operations.procedural(obj);
+          node = operations.prepend(comps.node, comps.object);
+
+          if (callback) callback(node);
 
           return this;
         },
 
-        at: function (obj, index) {
-          var comps = operations.procedural(node, obj);
-          operations.at(comps.node, comps.object, index);
+        at: function (obj, index, callback) {
+          var comps = operations.procedural(obj);
+          node = operations.at(comps.node, comps.object, index);
+
+          if (callback) callback(node);
 
           return this;
         },
 
-        push: function (obj) {
-          var comps = operations.procedural(node, obj);
-          operations.push(comps.node, comps.object);
+        push: function (obj, callback) {
+          var comps = operations.procedural(obj);
+          node = operations.push(comps.node, comps.object);
+
+          if (callback) callback(node);
 
           return this;
         },

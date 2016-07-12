@@ -1,8 +1,20 @@
 funcs.view = {
 
   new: function (name, meta) {
+    var utils = {
+      replaceNamespace: function (node, name) {
+        // remove the old namespace.
+        node.className = meta.container.className.split(/\s+/g).filter(function (o) {
+          return !/-namespace/g.test(o) && o;
+        }).concat(name + "-namespace").join(" ");
+
+        return node;
+      }
+    };
+
     // if the new view is different from the old view, run the transition.
     if (name !== meta.view.current && meta.view.current !== null && meta.routes[name]) {
+      var $scope = meta.routes[meta.view.current].state;
 
       // record the view that was transitioned from.
       meta.view.old = meta.view.current;
@@ -15,6 +27,8 @@ funcs.view = {
       funcs.hash.public.set.view(name);
       // run pre-transition procedural (create copy, hide original).
       funcs.transition.before(meta);
+
+      meta.container = utils.replaceNamespace(meta.container, name);
 
       // deploy the new route and provide a callback when it's done.
       funcs.routes.deploy(meta, name, function () {
@@ -44,6 +58,8 @@ funcs.view = {
       // set the current view.
       meta.view.current = name;
       meta.animation.inProgress = true;
+
+      meta.container = utils.replaceNamespace(meta.container, name);
 
       funcs.routes.deploy(meta, name, function () {
         funcs.transition.callback.after(meta);

@@ -8,6 +8,12 @@ funcs.scope = {
 
         immutable($scope[key], "data", {});
         immutable($scope[key], "self", []);
+        immutable($scope[key], "each", function (callback) {
+          var arr = $scope[key].self || [];
+          arr.forEach(function (o, i) {
+            callback(o, i, $scope[key].self);
+          });
+        });
       }
     },
 
@@ -70,7 +76,7 @@ funcs.scope = {
         return $scope[property].data[key];
       });
 
-      immutable($scope.data, "transfer", function (key, view) {
+      immutable($scope.data, "transfer", function (view, key) {
         var data = $scope.data[key];
 
         if (typeof data == "undefined" || data === null)
@@ -81,7 +87,21 @@ funcs.scope = {
       });
 
       immutable($scope.data, "repeat", {});
+
+      funcs.scope.toolkit($scope);
     }
+  },
+
+  removeAllNodeRefs: function ($scope) {
+    for (var x in $scope) {
+      if ($scope[x].self) {
+        funcs.util.tempUnlock($scope[x], "self", function (obj) {
+          obj.self = [];
+        });
+      }
+    }
+
+    return $scope;
   }
 };
 

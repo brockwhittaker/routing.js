@@ -15,6 +15,7 @@ var files = [
   "js/components/routes.js",
   "js/components/scope.js",
   "js/components/scope.repeat.js",
+  "js/components/scope.toolkit.js",
   "js/components/transition.js",
   "js/components/util.js",
   "js/components/view.js",

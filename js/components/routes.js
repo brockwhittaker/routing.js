@@ -16,7 +16,9 @@ funcs.routes = {
           html: null
         },
         // the scope/model of the view.
-        state: {}
+        state: {},
+        hasLoaded: false,
+        loads: 0
       };
 
       var $scope = meta.routes[name].state;
@@ -30,8 +32,15 @@ funcs.routes = {
   deploy: function (meta, name, callback) {
     var route = meta.routes[name];
 
+    if (route.hasLoaded === false) route.hasLoaded = 0;
+    else if (route.hasLoaded === 0) route.hasLoaded = true;
+
+    route.loads++;
+
     if (route) {
       funcs.hash.public.set.view(name);
+
+      funcs.scope.removeAllNodeRefs(meta.routes[name].state);
 
       funcs.load.page(meta, route, function (response) {
         console.log("loaded route '" + name + "'!");

@@ -22,14 +22,42 @@ funcs.util = {
     });
   },
 
+  tempUnlock: function (obj, key, callback) {
+    this.mutable(obj, key);
+    callback(obj);
+    this.immutable(obj, key);
+  },
+
   dotToObject: function (object, path) {
     path = path.split(/\./);
 
     path.forEach(function (o) {
       if (object[o]) object = object[o];
-      else console.warn("Cannot find property '" + o + "' of object in dot notation.");
+      // else console.warn("Cannot find property '" + o + "' of object in dot notation.");
     });
 
-    return (typeof object !== "object" ? object : "");
+    return (typeof object !== "object" || Array.isArray(object)) ? object : "";
+  },
+
+  findNearestParentRepeat: function (node) {
+    var parent;
+
+    while (node.parentNode) {
+      if (node.parentNode.repeat) parent = node.parentNode;
+      node = node.parentNode;
+    }
+
+    return parent;
+  },
+
+  isSample: function (node) {
+    var parent;
+
+    while (node.parentNode) {
+      if (node.parentNode.hasAttribute("b-repeat")) return true;
+      node = node.parentNode;
+    }
+
+    return false;
   }
 };

@@ -41,12 +41,16 @@ funcs.mutation = {
     var events = node.getAttribute("b-events"),
         name = node.getAttribute("b-name");
 
+
+
     // these require a name because these events are bound to a namespace.
     if (name) {
       // if the scope object for this doesn't exist, create it.
       funcs.scope.create.key($scope, name);
 
-      $scope[name].self.push(node);
+      if (document.body.contains(node) && $scope[name].self.indexOf(node) == -1) {
+        $scope[name].self.push(node);
+      }
 
       if (events) {
         // add each event.
@@ -80,6 +84,7 @@ funcs.mutation = {
     var repeatName = node.getAttribute("b-repeat"),
         object = node.getAttribute("b-obj");
 
+    node.setAttribute("b-repeated", node.getAttribute("b-repeat"));
     node.removeAttribute("b-repeat");
 
     funcs.util.immutable($scope.data.repeat, repeatName, {
@@ -92,6 +97,12 @@ funcs.mutation = {
     });
 
     funcs.DOM.remove(node);
+
+    if (name) {
+      $scope[name].self = $scope[name].self.filter(function (o) {
+        return !node.isEqualNode(o);
+      });
+    }
   },
 
   // remove nodes that
@@ -107,7 +118,7 @@ funcs.mutation = {
       // filter out any nodes that are the same as the ones that are being
       // removed from the DOM currently.
       $elem.self = $elem.self.filter(function (o) {
-        return (!node.isSameNode(o));
+        return !node.isSameNode(o);
       });
 
       // make immutable again so that users cannot delete $scope[key].self.
@@ -125,12 +136,16 @@ funcs.mutation = {
     var addEventsToAllNodes = function ($scope, parent) {
       var allNodes = funcs.DOM.parentAndChildren(parent);
 
-      allNodes.forEach(function (o) {
+      allNodes.forEach(function (o, i) {
         if (o.nodeType === 1) {
           self.addEventsToNode($scope.current, o);
 
           if (o.hasAttribute("b-repeat")) {
             self.addRepeatToNode($scope.current, o);
+          }
+
+          if (o.hasAttribute("b-repeat-in")) {
+            //self.addRepeatInToNode($scope.current, o, i);
           }
         }
       });

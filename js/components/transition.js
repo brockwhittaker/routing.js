@@ -20,8 +20,7 @@ funcs.transition = {
 
     meta.copy = meta.container.cloneNode(true);
     // remove the ID because no two elements should have the same id.
-    meta.copy.id = "";
-    meta.copy.className = "";
+    meta.copy.id = "clone_node";
   },
 
   // a func to make the meta.copy exist in the same place as the current
