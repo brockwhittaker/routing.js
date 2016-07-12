@@ -1,7 +1,7 @@
 #routing.js Example
 
+In the example in `index.html`, there is a controller with two views &mdash; the **home** and **people** view. Both controllers are located in `js/controllers` and the views are located in `pages`.
+
+The **home** view is a look into simple use of the `b-repeat` feature with the `$repeat.push` and `$repeat.remove` functions. There are two functions: `$scope.submit` and `$scope.deleteMe`. The `submit` function waits for a submit click and reads the value of the input before pushing to the `b-repeat`. The `deleteMe` function checks for a click on an individual message and then deletes it from the `b-repeat` array and DOM.
+
 ![Simple Messenger Example](assets/messages-demo.gif)
-
-The example in `./index.html` is a controller with a single **home** view. The JavaScript for **home** is located in `js/controllers/home.js` and the HTML is located in `pages/home.html`. The **home** view has a `b-repeat` action that creates a new `.ind-message` inside of `.message-container` every time that the button with the `b-click="submit"` is run with the contents of `b-name="input"`.
-
-Onclick of any `.ind-message` it gets removed using the `$scope.repeat(name).remove` function that is passed either the node from the repeat to be deleted or the ID of it.
