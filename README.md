@@ -190,6 +190,49 @@ route.controller(function ($scope, $data, view) {
 });
 ```
 
+##Quick Property Setting
+For a fast way to set properties for any element with a `b-name` attribute, use the `$scope.edit` function to set the following values:
+
+1. html: Set the innerHTML of the element.
+2. text: set the innerText of the element.
+
+You can do this with a simple key-value object where the keys are the `b-name` and the values are the value to place within. So below in the HTML, you'd create markup with `b-name` attributes that can be accessed and referenced in the `$scope`.
+
+```html
+<div class="bio">
+  <div b-name="name"></div>
+  <div b-name="major"></div>
+</div>
+```
+
+And in the JavaScript run the `$scope.edit.text` function to set the innerText property of them.
+
+```javascript
+$scope.edit.text({
+  name: "Brock Whittaker",
+  major: "Finance",
+});
+```
+
+If you have multiple elements of the same `b-name`, you can opt to provide a callback mechanism to set the values as you want. Below for instance reads a data-attr `data-ticker` from each element, queries an object with info, and then returns the current price of the stock. in either `green` or `red` dependent on whether it is up or down for the day.
+
+```javascript
+var stockInfo = {
+  AAPL: { price: 97.36, change: 0.38 },
+  AMZN: { price: 750.84, change: -0.41 },
+  MO: { price: 69.36, change: -0.77 }
+};
+
+$scope.edit.html({
+  name: function (node, index) {
+    let data = stockInfo[node.dataset.ticker],
+        color = obj.change > 0 ? "green" : "red";
+
+    return `<span class="${color}">${obj.price}</span>`;
+  }
+});
+```
+
 ##Storing Object-Level Data
 If you want to store data that is associated with a particular `b-name` object, you can use the `$scope.data` assignment which sets a key value pair like below:
 

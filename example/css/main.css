@@ -28,12 +28,16 @@ body {
 
   border-bottom: 1px solid #DDD;
   cursor: pointer;
+
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none;   /* Chrome/Safari/Opera */
+  -moz-user-select: none;      /* Firefox */
 }
 
 .ind-message:hover,
 .ind-person:hover {
   background-color: #FFF;
-  box-shadow: 0 0 15px rgba(0,0,0,0.2);
+  box-shadow: 0 0 15px rgba(0,0,0,0.1);
 }
 
 .ind-message .username {
