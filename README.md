@@ -67,29 +67,9 @@ All nodes are placed inside the `$scope` object in the format `$scope[{{b-name}}
 ##Adding Event Listeners
 Event listeners can be added in a ton of different ways, many with different features. Below is a list of those ways and the pros/cons associated with them.
 
-###Primitive Assignment.
-
-Each object you create using the `b-name` attribute will have its own attribute in `$scope` in the structure `$scope[b-name]`. Inside that is the following structure:
-
-```javascript
-$scope[b-name] = {
-  self: [[ Document Object ]],
-  click: [[ Function ]],
-  ...
-};
-```
-
-Where self is a reference to the node itself and `click` among other possible attributes are events you've added. Any event listeners use those as callbacks to run functions, so therefore you can change the callback simply by writing:
-
-```javascript
-$scope[b-name].click = function () {
-  // .. your code here.
-};
-```
-
 ### Safe Assignment
 
-This is not fully recommended however. The inherit issue with doing this is that if the `b-name` node selection doesn't exist yet, it will throw an error because `$scope[b-name]` doesn't exist yet. This also will mean that you can't apply the event to future instances of `b-name`. In order to use this syntax safely, use the `$scope.get(b-name)` syntax like below:
+While you can technically set event listeners in the format `$scope[b-name][event]`, it isn't recommended as if the `b-name` doesn't exist yet, JavaScript will throw an `Uncaught ReferenceError`. In order to safely set event listeners to a `b-name` class, use the `$scope.get` syntax.
 
 ```javascript
 $scope.get(b-name).click = function () {
@@ -151,7 +131,7 @@ route.controller(function ($scope, $data, view) {
 });
 ```
 
-We can also remove nodes dependent on object qualifiers using the `filter` function. Let's say for example a user "anon" just got banned from the server and you want to remove all his messages from the view along with the associated data. No problem.
+We can also remove nodes dependent on object qualifiers using the `filter` function. Let's say for example a user "anon" just got banned from the server and you want to remove all his messages from the view along with the associated data. No problem. Just filter the data to reject any index where the username property is equal to "anon".
 
 ```javascript
 route.controller(function ($scope, $data, view) {
