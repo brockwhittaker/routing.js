@@ -67,6 +67,24 @@ All nodes are placed inside the `$scope` object in the format `$scope[{{b-name}}
 ##Adding Event Listeners
 Event listeners can be added in a ton of different ways, many with different features. Below is a list of those ways and the pros/cons associated with them.
 
+### Direct Assignment
+
+If you want to directly tie a function to a type of event under a `b-name` class, such as a `click` event to the `ind-message` group, you can do so with the short-hand syntax like:
+
+```html
+<div b-name="ind-message" b-click="clickMe"></div>
+```
+
+Then in the controller, all you have to do is set the `$scope.clickMe` property to the function that should be called.
+
+```javascript
+route.controller(function ($scope, $data, view) {
+  $scope.clickMe = function () {
+    console.log("You clicked this.", this);
+  };
+});
+```
+
 ### Safe Assignment
 
 While you can technically set event listeners in the format `$scope[b-name][event]`, it isn't recommended as if the `b-name` doesn't exist yet, JavaScript will throw an `Uncaught ReferenceError`. In order to safely set event listeners to a `b-name` class, use the `$scope.get` syntax.
@@ -213,8 +231,8 @@ $scope.edit.html({
 });
 ```
 
-##Storing Object-Level Data
-If you want to store data that is associated with a particular `b-name` object, you can use the `$scope.data` assignment which sets a key value pair like below:
+##Storing Class-Level Data
+If you want to store data that is associated with a particular `b-name` class, you can use the `$scope.data` assignment which sets a key value pair like below:
 
 ```javascript
 $scope.data.prop(b-name, "temperature", "78.6F");
