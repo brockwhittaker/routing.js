@@ -1,8 +1,8 @@
 <div class="message-container">
   <div class="messages">
     <div class="ind-message" b-repeat="messages" b-name="messages" b-click="deleteMe">
-      <div class="username" b-obj="username"></div>
-      <div class="message" b-obj="message"></div>
+      <div class="username" b-prop="username" b-href="username"></div>
+      <div class="message" b-prop="message"></div>
     </div>
   </div>
 
@@ -13,8 +13,8 @@
 </div>
 
 <div b-repeat="names">
-  <div b-obj="name"></div>
+  <div b-prop="name"></div>
   <div b-repeat-in="numbers">
-    <div b-obj="number"></div>
+    <div b-prop="number"></div>
   </div>
 </div>

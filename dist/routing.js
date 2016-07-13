@@ -88,41 +88,13 @@ funcs.DOM = {
   // then convert dot notation like self.Id to obj["self"]["Id"]
   // set the value of obj["self"]["Id"] in the document innerHTML.
   fillWithObjectProperties: function (parent, object) {
-    var nodes = parent.querySelectorAll("[b-obj],[b-repeat-in]");
+    var nodes = parent.querySelectorAll("[b-prop]");
 
     var path, src, value, srcValue, repeatIn;
 
     for (var x = 0; x < nodes.length; x++) {
-      if (nodes[x].hasAttribute("b-repeat-in")) {
-        var prop = nodes[x].getAttribute("b-repeat-in");
-
-
-        if (!funcs.util.isSample(nodes[x]) && object[prop]) {
-          object[prop].forEach((function (o, i) {
-            var clone = nodes[x].cloneNode(true);
-
-            clone.removeAttribute("b-repeat-in");
-
-            clone.repeat = o;
-            clone.index = i;
-            this.fillWithObjectProperties(clone, o);
-            // console.log(clone.repeat, clone, nodes[x]);
-            try {
-              funcs.DOM.append(clone, nodes[x].parentNode);
-            } catch (e) { console.log(e); }
-          }).bind(this));
-        }
-
-        try {
-          funcs.DOM.remove(nodes[x]);
-        } catch (e) {}
-      } else if (funcs.util.isSample(nodes[x])) {
-        funcs.DOM.remove(nodes[x]);
-      } else if (
-        (nodes[x].hasAttribute("b-obj")|| nodes[x].hasAttribute("b-src")) &&
-        !nodes[x].hasAttribute("b-repeated-in")) {
-
-        path = nodes[x].getAttribute("b-obj");
+      if (nodes[x].hasAttribute("b-prop") || nodes[x].hasAttribute("b-src")) {
+        path = nodes[x].getAttribute("b-prop");
         src = nodes[x].getAttribute("b-src");
 
         if (path) {
@@ -132,9 +104,8 @@ funcs.DOM = {
 
         if (src) {
           srcValue = funcs.util.dotToObject(object, src);
-          nodes[x].setAttribute("src", srcValue);          
+          nodes[x].setAttribute("src", srcValue);
         }
-
       }
     }
 
@@ -458,12 +429,10 @@ funcs.mutation = {
   },
 
   addRepeatToNode: function ($scope, node) {
-    var repeatName = node.getAttribute("b-repeat"),
-        object = node.getAttribute("b-obj");
-
+    /*
     node.setAttribute("b-repeated", node.getAttribute("b-repeat"));
     node.removeAttribute("b-repeat");
-
+    *
     funcs.util.immutable($scope.data.repeat, repeatName, {
       node: node.cloneNode(true),
       list: [],
@@ -480,6 +449,13 @@ funcs.mutation = {
         return !node.isEqualNode(o);
       });
     }
+    */
+
+    var repeatName = node.getAttribute("b-repeat");
+
+    console.log("repeat", node);
+
+    funcs.util.immutable($scope.data.repeat, repeatName, funcs.repeater(repeatName, node));
   },
 
   // remove nodes that
@@ -553,6 +529,312 @@ funcs.mutation = {
     });
   }
 };
+
+var Repeater = function (name, node, arr) {
+  var meta = {
+    original: null,
+    marker: null,
+    data: [],
+    elems: []
+  };
+
+  var _funcs = {
+    generateID: function () {
+      return (Math.random() * 1E16).toString(32);
+    },
+
+    generateFromArray: function (arr, actions) {
+      for (var x = 0; x < arr.length; x++) {
+        var parent = this.createNodeFromTemplate(arr[x]);
+        meta.marker.parentNode.insertBefore(parent, meta.marker);
+      }
+
+      meta.marker.parentNode.removeChild(meta.marker);
+    },
+
+    init: function (name, node, arr, actions) {
+      // create a new repeater reference in the window scope.
+      if (!window._Repeater) window._Repeater = {};
+
+      if (name) {
+        // put a reference to _private meta in the window scope.
+        window._Repeater[name] = actions;
+      }
+
+      var id = this.generateID();
+      meta.marker = this.createMarker(this.generateID());
+
+      // clone the original and store it.
+      meta.original = this.node.store(node);
+
+      // insert before the current node.
+      node.parentNode.insertBefore(meta.marker, node);
+
+      node.parentNode.removeChild(node);
+
+      if (arr) {
+
+        this.generateFromArray(arr, actions);
+        //document.body.removeChild(meta.marker);
+      }
+    },
+
+    createMarker: function (id) {
+      var div = document.createElement("div");
+
+      div.className = "_marker";
+      div.style.visibility = "hidden";
+      div.style.display = "none";
+      div.hidden = true;
+
+      div.dataset.id = id;
+
+      return div;
+    },
+
+    node: {
+      store: function (node) {
+        var copy = node.cloneNode(true);
+
+        copy.removeAttribute("b-repeat-in");
+
+        return copy;
+      },
+
+      set: function (node, obj) {
+        var map = {
+          "b-prop": "innerHTML",
+          "b-src": "src",
+          "b-href": "href"
+        };
+
+        var attr, val;
+        for (var x in map) {
+          if (map.hasOwnProperty(x)) {
+            console.log(x, attr, node);
+            attr = node.getAttribute(x);
+            if (typeof attr !== "undefined" && attr !== null) {
+              val = _funcs.parse.dotToObj(obj, attr);
+
+              node.removeAttribute(x);
+              node[map[x]] = val;
+            }
+          }
+        }
+      },
+
+      isInsideBRepeatIn: function (node) {
+        while (node.parentNode) {
+          node = node.parentNode;
+          if (node.hasAttribute("b-repeat-in")) return true;
+        }
+
+        return false;
+      }
+    },
+
+    createNodeFromTemplate: function (obj) {
+      var parent = meta.original.cloneNode(true),
+          nodes = parent.querySelectorAll("*");
+
+      var path, arr;
+
+      for (var x = 0; x < nodes.length; x++) {
+        if (nodes[x].hasAttribute("b-repeat-in")) {
+          path = nodes[x].getAttribute("b-repeat-in");
+          arr = _funcs.parse.dotToObj(obj, path);
+
+          Repeater(null, nodes[x], arr);
+        }
+
+        if (nodes[x].hasAttribute("b-prop") && !this.node.isInsideBRepeatIn(nodes[x])) {
+          this.node.set(nodes[x], obj);
+        }
+      }
+
+      parent.removeAttribute("b-repeat");
+
+      return parent;
+    },
+
+    parse: {
+      dotToObj: function (obj, path) {
+        if (typeof path == "string") {
+          path = path.split(/\./);
+
+          for (var x = 0; x < path.length; x++) {
+            if (typeof obj[path[x]] !== "undefined" && obj[path[x]] !== null) {
+              obj = obj[path[x]];
+            } else {
+              // console.warn("Warning. Path " + path.join(".") + " does not exist.");
+            }
+          }
+
+          return obj;
+        } else throw "Error. Path must be a string.";
+      }
+    },
+
+    DOM: {
+      _inner: {
+        after: function (newNode, refNode) {
+          if (!refNode) {
+            this.after(newNode, meta.marker);
+          } else if (refNode.nextSibling) {
+            this.before(newNode, refNode.nextSibling);
+          } else if (refNode.parentNode) {
+            refNode.parentNode.appendChild(newNode);
+          }
+        },
+
+        before: function (newNode, refNode) {
+          refNode.parentNode.insertBefore(newNode, refNode);
+        },
+
+        prepend: function (newNode) {
+          this.after(newNode, meta.marker);
+        },
+
+        append: function (newNode) {
+          this.after(newNode, meta.elems[meta.elems.length - 1]);
+        },
+
+        at: function (newNode, index) {
+          if (meta.elems[index]) {
+            this.before(newNode, meta.elems[index]);
+          } else {
+            this.append(newNode);
+          }
+        },
+
+        remove: function (node) {
+          node.parentNode.removeChild(node);
+        },
+
+        removeAt: function (index) {
+          if (meta.elems[index]) {
+            this.remove(meta.elems[index]);
+          }
+        }
+      },
+
+      push: function (node) {
+        this._inner.append(node);
+      },
+
+      unshift: function (node) {
+        this._inner.prepend(node);
+      },
+
+      at: function (node, index) {
+        this._inner.at(node, index);
+      },
+
+      pop: function () {
+        this._inner.removeAt(meta.elems.length - 1);
+      },
+
+      shift: function () {
+        this._inner.removeAt(0);
+      },
+
+      removeAt: function (index) {
+        this._inner.removeAt(index);
+      }
+    },
+    bindID: function (node, obj) {
+      var id = this.generateID();
+
+      obj.__meta = { id: id };
+      node.dataset.b_id = id;
+    }
+  };
+
+  var actions = {
+    push: function (data) {
+      var node = _funcs.createNodeFromTemplate(data);
+      _funcs.bindID(node, data);
+
+      _funcs.DOM.push(node);
+
+      meta.data.push(data);
+      meta.elems.push(node);
+    },
+    unshift: function (data) {
+      var node = _funcs.createNodeFromTemplate(data);
+      _funcs.bindID(node, data);
+
+      _funcs.DOM.unshift(node);
+
+      meta.data.unshift(data);
+      meta.elems.unshift(node);
+    },
+    at: function (data, index) {
+      var node = _funcs.createNodeFromTemplate(data);
+      _funcs.bindID(node, data);
+
+      _funcs.DOM.at(node, index);
+
+      meta.data.splice(index, 0, data);
+      meta.elems.splice(index, 0, node);
+    },
+    pop: function () {
+      _funcs.DOM.pop();
+
+      meta.data.pop();
+      meta.elems.pop();
+    },
+    shift: function () {
+      _funcs.DOM.shift();
+
+      meta.data.shift();
+      meta.elems.shift();
+    },
+    // you can either pass in a numeric index or you can pass in a node itself.
+    remove: function (index) {
+      var i = 0, id;
+      if (typeof index == "object") {
+        id = index.dataset.b_id;
+
+        meta.data.forEach(function (o, i) {
+          if (o.__meta.id == id) index = i;
+        });
+
+        if (typeof index == "object") {
+          index = -1;
+          throw "Error. This node couldn't be found in the repeat sequence.";
+        }
+      }
+
+      _funcs.DOM.removeAt(index);
+
+      meta.data.splice(index, 1);
+      meta.elems.splice(index, 1);
+    },
+    filter: function (callback) {
+      meta.data = meta.data.map(function (o) {
+        return callback(o) ? o : false;
+      });
+
+      meta.elems = meta.elems.filter(function (o, i) {
+        if (meta.data[i] === false) {
+          _funcs.DOM._inner.remove(o);
+          return false;
+        } else return true;
+      });
+
+      meta.data = meta.data.filter(function (o) {
+        return o;
+      });
+    }
+  };
+
+  _funcs.init(name, node, arr, actions);
+
+  return actions;
+};
+
+funcs.repeater = Repeater;
 
 funcs.routes = {
   // add a new route to the meta.routes list.
@@ -736,184 +1018,7 @@ funcs.scope.repeat = function ($scope) {
 
   immutable($scope, "repeat", function (name) {
     if ($scope.data.repeat[name]) {
-      var $repeat = $scope.data.repeat[name],
-          node = $repeat.node,
-          bName = $repeat.name;
-
-      var operations = {
-        // generate a random ID for nodes.
-        generateID: function () {
-          return Math.round(Math.random() * 100000000000).toString(36) + "_" + new Date().getTime();
-        },
-        // clone the node and change b-obj to innerHTML with object values.
-        processNode: function (node, obj) {
-          // create a new instance of the node.
-          node = node.cloneNode(true);
-          node.repeat = obj;
-          // get values from b-obj and fill in innerHTML with the values.
-          funcs.DOM.fillWithObjectProperties(node, obj);
-
-          return node;
-        },
-
-        // add a __meta attribute to keep track of the node that an object of
-        // data is tied to and whether or not it is in queue to be removed.
-        processObject: function (obj, node) {
-
-          obj.__meta = {
-            node: node,
-            removed: false,
-            id: this.generateID()
-          };
-
-          node.setAttribute("b-id", obj.__meta.id);
-
-          return obj;
-        },
-
-        // get the nearest valid sibling of an object.
-        validSibling: function (index) {
-          var $sibling,
-              isParent = false;
-
-          // check if sibling at desired index exists. This is most ideal.
-          if ($repeat.list[index]) {
-            $sibling = $repeat.list[index].__meta.node;
-          // otherwise get the last element in the array (length - 1).
-          } else if ($repeat.list[$repeat.list.length - 1]) {
-            $sibling = $repeat.list[$repeat.list.length - 1].__meta.node;
-          // otherwise, get the meta.prev of the original inserted node.
-          } else if ($repeat.list.meta.prev) {
-            $sibling = $repeat.list.meta.prev;
-          // and last ditch effort, get the parent node of the original node.
-          } else {
-            isParent = true;
-            $sibling = $repeat.list.meta.parent;
-          }
-
-          // tell whether or not the retrieved node is the same level or
-          // if it is a parent node.
-          return { node: $sibling, parent: isParent };
-        },
-
-        // a small wrapper function for processing the node and the object.
-        procedural: function (obj) {
-          var node = this.processNode($scope.data.repeat[name].node, obj);
-          obj = this.processObject(obj, node);
-
-          return { node: node, object: obj };
-        },
-
-        // add to the beginning of the container and array.
-        prepend: function (node, obj) {
-          $repeat.list.unshift(obj);
-
-          if ($repeat.meta.prev) {
-            funcs.DOM.after(node, $repeat.meta.prev);
-          } else {
-            funcs.DOM.prepend(node, $repeat.meta.parent);
-          }
-
-          return node;
-        },
-
-        // append to the end of the container and array.
-        push: function (node, obj) {
-          var $last = $repeat.list[$repeat.list.length - 1];
-
-          if ($last) {
-            funcs.DOM.after(node, $last.__meta.node);
-          } else if ($repeat.meta.prev) {
-            funcs.DOM.after(node, $repeat.meta.prev);
-          } else {
-            funcs.DOM.append(node, $repeat.meta.parent);
-          }
-
-          $repeat.list.push(obj);
-
-          return node;
-        },
-
-        // add at a desired index in the container and array.
-        at: function (node, obj, index) {
-          var $index = $repeat.list[index];
-
-          // if the index exists, splice and add the node without removing any.
-          if ($index) {
-            $repeat.list.splice(index, 0, node);
-            funcs.DOM.before(node, $repeat.list[index + 1].__meta.node);
-          // otherwise, use the push function to push to wherever the end is.
-          } else {
-            $repeat.list.push(obj);
-            this.push(node, obj);
-
-            console.warn("Error. No node with index '" + index + "'. Node pushed instead.");
-          }
-
-          return node;
-        }
-      };
-
-      return {
-        unshift: function (obj, callback) {
-          var comps = operations.procedural(obj);
-          node = operations.prepend(comps.node, comps.object);
-
-          if (callback) callback(node);
-
-          return this;
-        },
-
-        at: function (obj, index, callback) {
-          var comps = operations.procedural(obj);
-          node = operations.at(comps.node, comps.object, index);
-
-          if (callback) callback(node);
-
-          return this;
-        },
-
-        push: function (obj, callback) {
-          var comps = operations.procedural(obj);
-          node = operations.push(comps.node, comps.object);
-
-          if (callback) callback(node);
-
-          return this;
-        },
-
-        // a filter function to iterate through all objects, check if they
-        // qualify to continue existing and if not, remove them from the
-        // array and the DOM.
-        filter: function (callback) {
-          $repeat.list.forEach(function (o) {
-            if (callback(o) === false) {
-              o.__meta.removed = true;
-            }
-          });
-
-          $repeat.list = $repeat.list.filter(function (o) {
-            if (o.__meta.removed) {
-              funcs.DOM.remove(o.__meta.node);
-              return false;
-            } else return true;
-          });
-
-          return this;
-        },
-
-        // remove a node with a particular ID.
-        remove: function (id) {
-          // in this case, they passed the node they want to delete. No problem.
-          // just get the b-id of it.
-
-          if (typeof id == "object") id = id.getAttribute("b-id");
-
-          this.filter(function (o) {
-            return o.__meta.id !== id;
-          });
-        }
-      };
+      return $scope.data.repeat[name];
     } else console.warn("Error. Repeat associated with key '" + name + "' does not exist yet.");
   });
 };

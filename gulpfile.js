@@ -12,6 +12,7 @@ var files = [
   "js/components/init.js",
   "js/components/load.js",
   "js/components/mutation.js",
+  "js/components/repeater.js",
   "js/components/routes.js",
   "js/components/scope.js",
   "js/components/scope.repeat.js",

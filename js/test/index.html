@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+    <style media="screen">
+      div {
+        padding: 3px 10px;
+        border-left: 2px solid #CCC;
+      }
+    </style>
+  </head>
+  <body>
+    <div b-repeat="main">
+      <div b-prop="name"></div>
+      <div b-prop="number"></div>
+      <div class="info">
+        <div b-prop="ipAddress"></div>
+      </div>
+      <div b-repeat-in="numbers">
+        <div b-prop="number"></div>
+        <div b-repeat-in="letters">
+          <div b-prop="letter"></div>
+        </div>
+      </div>
+    </div>
+  </body>
+
+  <script src="../build/Repeater.js" charset="utf-8"></script>
+</html>

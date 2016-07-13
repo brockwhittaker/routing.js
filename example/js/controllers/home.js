@@ -6,7 +6,26 @@ var messages = [
   { username: "brock", message: "San Francisco." }
 ];
 
+var names = [
+  { name: "Brock", numbers: [
+    {number: 1},
+    {number: 2},
+    {number: 3}
+  ] },
+  { name: "Andrew", numbers: [
+    {number: 1},
+    {number: 4},
+    {number: 3}
+  ] }
+];
+
 route.controller(function ($scope, $data, view) {
+  window.$scope = $scope;
+
+  /* -- repeat messages in above object -- */
+  $messages = $scope.repeat("messages");
+  $names = $scope.repeat("names");
+
   /* -- $scope listeners -- */
   $scope.submit = function () {
     var msg = $scope.input.self[0].value;
@@ -17,10 +36,12 @@ route.controller(function ($scope, $data, view) {
     $messages.remove(this);
   };
 
-  /* -- repeat messages in above object -- */
-  var $messages = $scope.repeat("messages");
 
   messages.forEach(function (o) {
     $messages.push(o);
+  });
+
+  names.forEach(function (o) {
+    $names.push(o);
   });
 });

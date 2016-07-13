@@ -81,12 +81,10 @@ funcs.mutation = {
   },
 
   addRepeatToNode: function ($scope, node) {
-    var repeatName = node.getAttribute("b-repeat"),
-        object = node.getAttribute("b-obj");
-
+    /*
     node.setAttribute("b-repeated", node.getAttribute("b-repeat"));
     node.removeAttribute("b-repeat");
-
+    *
     funcs.util.immutable($scope.data.repeat, repeatName, {
       node: node.cloneNode(true),
       list: [],
@@ -103,6 +101,13 @@ funcs.mutation = {
         return !node.isEqualNode(o);
       });
     }
+    */
+
+    var repeatName = node.getAttribute("b-repeat");
+
+    console.log("repeat", node);
+
+    funcs.util.immutable($scope.data.repeat, repeatName, funcs.repeater(repeatName, node));
   },
 
   // remove nodes that

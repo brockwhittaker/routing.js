@@ -24,41 +24,13 @@ funcs.DOM = {
   // then convert dot notation like self.Id to obj["self"]["Id"]
   // set the value of obj["self"]["Id"] in the document innerHTML.
   fillWithObjectProperties: function (parent, object) {
-    var nodes = parent.querySelectorAll("[b-obj],[b-repeat-in]");
+    var nodes = parent.querySelectorAll("[b-prop]");
 
     var path, src, value, srcValue, repeatIn;
 
     for (var x = 0; x < nodes.length; x++) {
-      if (nodes[x].hasAttribute("b-repeat-in")) {
-        var prop = nodes[x].getAttribute("b-repeat-in");
-
-
-        if (!funcs.util.isSample(nodes[x]) && object[prop]) {
-          object[prop].forEach((function (o, i) {
-            var clone = nodes[x].cloneNode(true);
-
-            clone.removeAttribute("b-repeat-in");
-
-            clone.repeat = o;
-            clone.index = i;
-            this.fillWithObjectProperties(clone, o);
-            // console.log(clone.repeat, clone, nodes[x]);
-            try {
-              funcs.DOM.append(clone, nodes[x].parentNode);
-            } catch (e) { console.log(e); }
-          }).bind(this));
-        }
-
-        try {
-          funcs.DOM.remove(nodes[x]);
-        } catch (e) {}
-      } else if (funcs.util.isSample(nodes[x])) {
-        funcs.DOM.remove(nodes[x]);
-      } else if (
-        (nodes[x].hasAttribute("b-obj")|| nodes[x].hasAttribute("b-src")) &&
-        !nodes[x].hasAttribute("b-repeated-in")) {
-
-        path = nodes[x].getAttribute("b-obj");
+      if (nodes[x].hasAttribute("b-prop") || nodes[x].hasAttribute("b-src")) {
+        path = nodes[x].getAttribute("b-prop");
         src = nodes[x].getAttribute("b-src");
 
         if (path) {
@@ -68,9 +40,8 @@ funcs.DOM = {
 
         if (src) {
           srcValue = funcs.util.dotToObject(object, src);
-          nodes[x].setAttribute("src", srcValue);          
+          nodes[x].setAttribute("src", srcValue);
         }
-
       }
     }
 
