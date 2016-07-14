@@ -14,6 +14,8 @@ var Repeater = function (name, node, arr) {
     generateFromArray: function (arr, actions) {
       for (var x = 0; x < arr.length; x++) {
         var parent = this.createNodeFromTemplate(arr[x]);
+        parent.index = x;
+
         meta.marker.parentNode.insertBefore(parent, meta.marker);
       }
 
@@ -79,7 +81,6 @@ var Repeater = function (name, node, arr) {
         var attr, val;
         for (var x in map) {
           if (map.hasOwnProperty(x)) {
-            console.log(x, attr, node);
             attr = node.getAttribute(x);
             if (typeof attr !== "undefined" && attr !== null) {
               val = _funcs.parse.dotToObj(obj, attr);
@@ -115,7 +116,7 @@ var Repeater = function (name, node, arr) {
           Repeater(null, nodes[x], arr);
         }
 
-        if (nodes[x].hasAttribute("b-prop") && !this.node.isInsideBRepeatIn(nodes[x])) {
+        if (!this.node.isInsideBRepeatIn(nodes[x])) {
           this.node.set(nodes[x], obj);
         }
       }
@@ -219,7 +220,7 @@ var Repeater = function (name, node, arr) {
   };
 
   var actions = {
-    push: function (data) {
+    push: function (data, callback) {
       var node = _funcs.createNodeFromTemplate(data);
       _funcs.bindID(node, data);
 
@@ -227,8 +228,10 @@ var Repeater = function (name, node, arr) {
 
       meta.data.push(data);
       meta.elems.push(node);
+
+      if (callback) callback(node);
     },
-    unshift: function (data) {
+    unshift: function (data, callback) {
       var node = _funcs.createNodeFromTemplate(data);
       _funcs.bindID(node, data);
 
@@ -236,8 +239,10 @@ var Repeater = function (name, node, arr) {
 
       meta.data.unshift(data);
       meta.elems.unshift(node);
+
+      if (callback) callback(node);
     },
-    at: function (data, index) {
+    at: function (data, index, callback) {
       var node = _funcs.createNodeFromTemplate(data);
       _funcs.bindID(node, data);
 
@@ -245,6 +250,8 @@ var Repeater = function (name, node, arr) {
 
       meta.data.splice(index, 0, data);
       meta.elems.splice(index, 0, node);
+
+      if (callback) callback(node);
     },
     pop: function () {
       _funcs.DOM.pop();

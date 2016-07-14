@@ -26,21 +26,20 @@ funcs.DOM = {
   fillWithObjectProperties: function (parent, object) {
     var nodes = parent.querySelectorAll("[b-prop]");
 
-    var path, src, value, srcValue, repeatIn;
+    var map = {
+      "b-prop": "innerHTML",
+      "b-src": "src",
+      "b-href": "href"
+    };
 
-    for (var x = 0; x < nodes.length; x++) {
-      if (nodes[x].hasAttribute("b-prop") || nodes[x].hasAttribute("b-src")) {
-        path = nodes[x].getAttribute("b-prop");
-        src = nodes[x].getAttribute("b-src");
-
-        if (path) {
-          value = funcs.util.dotToObject(object, path);
-          nodes[x].innerHTML = value;
-        }
-
-        if (src) {
-          srcValue = funcs.util.dotToObject(object, src);
-          nodes[x].setAttribute("src", srcValue);
+    var attr, val;
+    for (var x in map) {
+      if (map.hasOwnProperty(x)) {
+        attr = node.getAttribute(x);
+        if (typeof attr !== "undefined" && attr !== null) {
+          val = funcs.util.dotToObject(object, path);
+          node.removeAttribute(x);
+          node[map[x]] = val;
         }
       }
     }

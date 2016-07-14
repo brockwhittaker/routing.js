@@ -19,6 +19,7 @@ funcs.transition = {
     }
 
     meta.copy = meta.container.cloneNode(true);
+    meta.copy.className = meta.view.old + "-namespace";
     // remove the ID because no two elements should have the same id.
     meta.copy.id = "clone_node";
   },
@@ -102,7 +103,13 @@ funcs.transition = {
   // document.
   before: function (meta, callback) {
     this.clonePage(meta);
-    this.hideContainer(meta);
     this.appendCopy(meta);
+    console.log("Copy appended at " + new Date().getTime());
+    setTimeout((function () {
+      this.hideContainer(meta);
+      console.log("Container hidden at " + new Date().getTime());
+
+      callback();
+    }).bind(this), 50);
   }
 };

@@ -63,6 +63,11 @@ funcs.load = {
     // meta.config.cache must equal `true`.
     if (route.content.html && meta.config.cache) {
       loaded.html = true;
+
+      while (meta.container.firstChild) {
+        meta.container.removeChild(meta.container.firstChild);
+      }
+
       meta.container.innerHTML = route.content.html;
 
       loadScript();
@@ -72,6 +77,11 @@ funcs.load = {
       this.html(route.url.html, function (response) {
         loaded.html = true;
         route.content.html = response;
+
+        while (meta.container.firstChild) {
+          meta.container.removeChild(meta.container.firstChild);
+        }
+
         meta.container.innerHTML = route.content.html;
 
         loadScript();

@@ -90,21 +90,20 @@ funcs.DOM = {
   fillWithObjectProperties: function (parent, object) {
     var nodes = parent.querySelectorAll("[b-prop]");
 
-    var path, src, value, srcValue, repeatIn;
+    var map = {
+      "b-prop": "innerHTML",
+      "b-src": "src",
+      "b-href": "href"
+    };
 
-    for (var x = 0; x < nodes.length; x++) {
-      if (nodes[x].hasAttribute("b-prop") || nodes[x].hasAttribute("b-src")) {
-        path = nodes[x].getAttribute("b-prop");
-        src = nodes[x].getAttribute("b-src");
-
-        if (path) {
-          value = funcs.util.dotToObject(object, path);
-          nodes[x].innerHTML = value;
-        }
-
-        if (src) {
-          srcValue = funcs.util.dotToObject(object, src);
-          nodes[x].setAttribute("src", srcValue);
+    var attr, val;
+    for (var x in map) {
+      if (map.hasOwnProperty(x)) {
+        attr = node.getAttribute(x);
+        if (typeof attr !== "undefined" && attr !== null) {
+          val = funcs.util.dotToObject(object, path);
+          node.removeAttribute(x);
+          node[map[x]] = val;
         }
       }
     }
@@ -328,6 +327,11 @@ funcs.load = {
     // meta.config.cache must equal `true`.
     if (route.content.html && meta.config.cache) {
       loaded.html = true;
+
+      while (meta.container.firstChild) {
+        meta.container.removeChild(meta.container.firstChild);
+      }
+
       meta.container.innerHTML = route.content.html;
 
       loadScript();
@@ -337,6 +341,11 @@ funcs.load = {
       this.html(route.url.html, function (response) {
         loaded.html = true;
         route.content.html = response;
+
+        while (meta.container.firstChild) {
+          meta.container.removeChild(meta.container.firstChild);
+        }
+
         meta.container.innerHTML = route.content.html;
 
         loadScript();
@@ -429,28 +438,6 @@ funcs.mutation = {
   },
 
   addRepeatToNode: function ($scope, node) {
-    /*
-    node.setAttribute("b-repeated", node.getAttribute("b-repeat"));
-    node.removeAttribute("b-repeat");
-    *
-    funcs.util.immutable($scope.data.repeat, repeatName, {
-      node: node.cloneNode(true),
-      list: [],
-      meta: {
-        prev: node.previousSibling,
-        parent: node.parentNode
-      }
-    });
-
-    funcs.DOM.remove(node);
-
-    if (name) {
-      $scope[name].self = $scope[name].self.filter(function (o) {
-        return !node.isEqualNode(o);
-      });
-    }
-    */
-
     var repeatName = node.getAttribute("b-repeat");
 
     console.log("repeat", node);
@@ -546,6 +533,8 @@ var Repeater = function (name, node, arr) {
     generateFromArray: function (arr, actions) {
       for (var x = 0; x < arr.length; x++) {
         var parent = this.createNodeFromTemplate(arr[x]);
+        parent.index = x;
+
         meta.marker.parentNode.insertBefore(parent, meta.marker);
       }
 
@@ -611,7 +600,6 @@ var Repeater = function (name, node, arr) {
         var attr, val;
         for (var x in map) {
           if (map.hasOwnProperty(x)) {
-            console.log(x, attr, node);
             attr = node.getAttribute(x);
             if (typeof attr !== "undefined" && attr !== null) {
               val = _funcs.parse.dotToObj(obj, attr);
@@ -647,7 +635,7 @@ var Repeater = function (name, node, arr) {
           Repeater(null, nodes[x], arr);
         }
 
-        if (nodes[x].hasAttribute("b-prop") && !this.node.isInsideBRepeatIn(nodes[x])) {
+        if (!this.node.isInsideBRepeatIn(nodes[x])) {
           this.node.set(nodes[x], obj);
         }
       }
@@ -751,7 +739,7 @@ var Repeater = function (name, node, arr) {
   };
 
   var actions = {
-    push: function (data) {
+    push: function (data, callback) {
       var node = _funcs.createNodeFromTemplate(data);
       _funcs.bindID(node, data);
 
@@ -759,8 +747,10 @@ var Repeater = function (name, node, arr) {
 
       meta.data.push(data);
       meta.elems.push(node);
+
+      if (callback) callback(node);
     },
-    unshift: function (data) {
+    unshift: function (data, callback) {
       var node = _funcs.createNodeFromTemplate(data);
       _funcs.bindID(node, data);
 
@@ -768,8 +758,10 @@ var Repeater = function (name, node, arr) {
 
       meta.data.unshift(data);
       meta.elems.unshift(node);
+
+      if (callback) callback(node);
     },
-    at: function (data, index) {
+    at: function (data, index, callback) {
       var node = _funcs.createNodeFromTemplate(data);
       _funcs.bindID(node, data);
 
@@ -777,6 +769,8 @@ var Repeater = function (name, node, arr) {
 
       meta.data.splice(index, 0, data);
       meta.elems.splice(index, 0, node);
+
+      if (callback) callback(node);
     },
     pop: function () {
       _funcs.DOM.pop();
@@ -1075,6 +1069,7 @@ funcs.transition = {
     }
 
     meta.copy = meta.container.cloneNode(true);
+    meta.copy.className = meta.view.old + "-namespace";
     // remove the ID because no two elements should have the same id.
     meta.copy.id = "clone_node";
   },
@@ -1158,8 +1153,14 @@ funcs.transition = {
   // document.
   before: function (meta, callback) {
     this.clonePage(meta);
-    this.hideContainer(meta);
     this.appendCopy(meta);
+    console.log("Copy appended at " + new Date().getTime());
+    setTimeout((function () {
+      this.hideContainer(meta);
+      console.log("Container hidden at " + new Date().getTime());
+
+      callback();
+    }).bind(this), 50);
   }
 };
 
@@ -1233,7 +1234,7 @@ funcs.view = {
     var utils = {
       replaceNamespace: function (node, name) {
         // remove the old namespace.
-        node.className = meta.container.className.split(/\s+/g).filter(function (o) {
+        node.className = node.className.split(/\s+/g).filter(function (o) {
           return !/-namespace/g.test(o) && o;
         }).concat(name + "-namespace").join(" ");
 
@@ -1255,26 +1256,27 @@ funcs.view = {
       // set the location.hash view name.
       funcs.hash.public.set.view(name);
       // run pre-transition procedural (create copy, hide original).
-      funcs.transition.before(meta);
+      funcs.transition.before(meta, function () {
+        utils.replaceNamespace(meta.container, name);
 
-      meta.container = utils.replaceNamespace(meta.container, name);
-
-      // deploy the new route and provide a callback when it's done.
-      funcs.routes.deploy(meta, name, function () {
-        // this is confusing, but essentially it runs the custom user transition.
-        // the user then triggers the `done` parameter which internally triggers
-        // funcs.transition.callback.after, which switches views again basically.
-        if (meta.transition) {
-          // use Function.prototype.call to run the function and set params.
-          // set `this` as 'null' to disallow access to internal functions.
-          meta.transition.call(null, funcs.transition.callback.after.bind(null, meta), {
-            old: meta.copy,
-            new: meta.container
-          }, {
-            new: meta.view.current,
-            old: meta.view.old
-          });
-        } else funcs.transition.callback.after(meta);
+        // deploy the new route and provide a callback when it's done.
+        funcs.routes.deploy(meta, name, function () {
+          // this is confusing, but essentially it runs the custom user transition.
+          // the user then triggers the `done` parameter which internally triggers
+          // funcs.transition.callback.after, which switches views again basically.
+          if (meta.transition) {
+            console.log("Transition started at " + new Date().getTime());
+            // use Function.prototype.call to run the function and set params.
+            // set `this` as 'null' to disallow access to internal functions.
+            meta.transition.call(null, funcs.transition.callback.after.bind(null, meta), {
+              old: meta.copy,
+              new: meta.container
+            }, {
+              new: meta.view.current,
+              old: meta.view.old
+            });
+          } else funcs.transition.callback.after(meta);
+        });
       });
     // the location.hash variable being set should not trigger this function,
     // so still block `name !== meta.view.current` and make sure the route exists.

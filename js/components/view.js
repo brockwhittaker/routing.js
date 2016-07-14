@@ -4,7 +4,7 @@ funcs.view = {
     var utils = {
       replaceNamespace: function (node, name) {
         // remove the old namespace.
-        node.className = meta.container.className.split(/\s+/g).filter(function (o) {
+        node.className = node.className.split(/\s+/g).filter(function (o) {
           return !/-namespace/g.test(o) && o;
         }).concat(name + "-namespace").join(" ");
 
@@ -26,26 +26,27 @@ funcs.view = {
       // set the location.hash view name.
       funcs.hash.public.set.view(name);
       // run pre-transition procedural (create copy, hide original).
-      funcs.transition.before(meta);
+      funcs.transition.before(meta, function () {
+        utils.replaceNamespace(meta.container, name);
 
-      meta.container = utils.replaceNamespace(meta.container, name);
-
-      // deploy the new route and provide a callback when it's done.
-      funcs.routes.deploy(meta, name, function () {
-        // this is confusing, but essentially it runs the custom user transition.
-        // the user then triggers the `done` parameter which internally triggers
-        // funcs.transition.callback.after, which switches views again basically.
-        if (meta.transition) {
-          // use Function.prototype.call to run the function and set params.
-          // set `this` as 'null' to disallow access to internal functions.
-          meta.transition.call(null, funcs.transition.callback.after.bind(null, meta), {
-            old: meta.copy,
-            new: meta.container
-          }, {
-            new: meta.view.current,
-            old: meta.view.old
-          });
-        } else funcs.transition.callback.after(meta);
+        // deploy the new route and provide a callback when it's done.
+        funcs.routes.deploy(meta, name, function () {
+          // this is confusing, but essentially it runs the custom user transition.
+          // the user then triggers the `done` parameter which internally triggers
+          // funcs.transition.callback.after, which switches views again basically.
+          if (meta.transition) {
+            console.log("Transition started at " + new Date().getTime());
+            // use Function.prototype.call to run the function and set params.
+            // set `this` as 'null' to disallow access to internal functions.
+            meta.transition.call(null, funcs.transition.callback.after.bind(null, meta), {
+              old: meta.copy,
+              new: meta.container
+            }, {
+              new: meta.view.current,
+              old: meta.view.old
+            });
+          } else funcs.transition.callback.after(meta);
+        });
       });
     // the location.hash variable being set should not trigger this function,
     // so still block `name !== meta.view.current` and make sure the route exists.
