@@ -85,42 +85,41 @@ route.controller(function ($scope, $data, view) {
 });
 ```
 
-### Safe Assignment
+###Dynamic Assignment
 
-While you can technically set event listeners in the format `$scope[b-name][event]`, it isn't recommended as if the `b-name` doesn't exist yet, JavaScript will throw an `Uncaught ReferenceError`. In order to safely set event listeners to a `b-name` class, use the `$scope.get` syntax.
+A brand new feature in **routing.js** is the ability to reverse the order of how event listeners are tied to elements. In the new system, listeners are applied by a user fully in JavaScript and are then optimized by the framework to apply to all future nodes of the same `b-name` or type. A benefit of this structure is that you can add and remove the event listeners by name, so when you're done you can free up the processing power associated with calling an event.
 
-```javascript
-$scope.get(b-name).click = function () {
-  // .. your code here.
-};
-```
+This works by using `MutationObserver` to check which types of actions a user is looking to track on that type of element. Instead of adding individual functions only one wrapper function is added that calls all individual functions of that type in a queue. That means that when you delete a function it is simply removed from the queue instead of being unbound from potentially hundreds of elements. In this method, all newly created nodes can lookup the existing listeners on its type and automatically apply the wrapper listeners that then allow queued functions to apply to it.
 
-The benefit of this syntax is that it creates the wrapper for the `b-name` object even if it doesn't exist so that when it does, all event listeners added before will automatically work. This will output a `console.warn` however if you assign this before a node exists.
+Let's check out how we use this in practice. In the `$scope`, we have an `event` property that has both an `add` and `remove` feature.
 
-If you want to plainly (and safely) assign a single or multiple events to any object, you can use the key/value syntax like below to add events:
+####$scope.event.add
+
+This adds an object of events in the format of `[eventType][name] = func`. The two arguments are the `b-name` to apply to and the object of functions.
 
 ```javascript
-$scope.events.add(b-name, "click", function () {
-  // .. your code here.
-})
-```
-
-###Multiple Assignment
-
-You can assign multiple event listeners easily with the object notation to a `b-name`.
-
-```javascript
-$scope.events.add(b-name, {
+$scope.event.add("messages", {
   click: function () {
-    // .. your code here.
+    clickMe: function (e) {
+      // `this` refers to the element you clicked. `e` is the event.
+      console.log("You clicked me!", this, e);
+    }
   },
-  mousemove: function () {
-    // .. more code here.
-  },
-  dragstart: function () {
-    // .. more code here.
+  dblclick: function () {
+    deleteMe: function () {
+      console.log("You deleted me. :(");
+      // syntax for removing a b-repeated element.
+      $messages.remove(this);
+    }
   }
 });
+```
+
+If you want to remove a function from the queue then it's as simple as telling the `$scope` where the event is. You need to remove it by which class it is bound to, the type of event, and name of the event. In this case, you can have two similarly named functions under different event types and only the correct one will be removed.
+
+```javascript
+// remove the `click` event bound to the b-name `messages` with the func name `clickMe`.
+$scope.event.remove("messages", "click", "clickMe");
 ```
 
 ##Repeating HTML Dynamically

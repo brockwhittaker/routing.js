@@ -1,5 +1,150 @@
 var funcs = {};
 
+var Listeners = function () {
+  var meta = {
+    events: {},
+    nodes: {}
+  };
+
+  var _funcs = {
+    addListener: function (node, name, type) {
+      var self = this;
+
+      node.addEventListener(type, function (e) {
+        // run through each of the events and call them with thisArg and e.
+        self.applyAllEvents(name, type, (function (func) {
+          func[0].call(this, e);
+        }).bind(this));
+      });
+    },
+
+    addPrevListeners: function (name) {
+      // check if there's any previous events to apply.
+      if (meta.events[name]) {
+        var self = this;
+
+        var listenerTypes = Object.keys(meta.events[name]);
+
+        listenerTypes.forEach(function (type) {
+          self.updateClassEvents(name, type);
+        });
+      }
+    },
+
+    // if nodes are not part of the document, remove their references.
+    // though this really doesn't matter too much since we traverse arrays backwards
+    // and these nodes aren't ever activated by event listeners.
+    // we're only doing this for memory reasons.
+    purgeDeadNodes: function (name) {
+      // check if there are nodes of this type (there should be!).
+      if (meta.nodes[name]) {
+        meta.nodes[name] = meta.nodes[name].filter(function (o) {
+          return document.body.contains(o[0]);
+        });
+      }
+    },
+
+    addIndividualEvent: function (bName, event, funcName, func) {
+      if (!meta.events[bName][event]) meta.events[bName][event] = [];
+
+      meta.events[bName][event].push([func, funcName]);
+    },
+
+    removeEvent: function (name, type, funcName) {
+      if (meta.events[name] && meta.events[name][type]) {
+        meta.events[name][type] = meta.events[name][type].filter(function (o) {
+          return o[1] !== funcName;
+        });
+      }
+    },
+
+    // add a new event type to the series of nodes.
+    // this works well because if there's 100 nodes and none have a click ev
+    // that is applied, it will apply to all 100, however if you append a new node
+    // it will check all events and update all events for the first node and stop
+    // there because no others need new events.
+    updateClassEvents: function (name, type) {
+      // if there exists nodes in this category yet..
+      if (meta.nodes[name]) {
+        this.purgeDeadNodes(name);
+
+        // for each of the nodes in the b-name class..
+        // start from the newest nodes.
+        // once you reach a node that has an EL, all before it should/will have one.
+        var node;
+        for (var x = meta.nodes[name].length - 1; x > 0; x--) {
+          // in structure [node, {types}].
+          node = meta.nodes[name][x];
+
+          // if the type of event hasn't been initialized yet, initialize it.
+
+          if (!node[1][type]) {
+            this.addListener(node[0], name, type);
+            // now flag that this event type has been added.
+            node[1][type] = true;
+          } else break;
+        }
+      }
+    },
+
+    applyAllEvents: function (name, type, callback) {
+      meta.events[name][type].forEach(function (o) {
+        callback(o);
+      });
+    },
+
+    // loop through an object and provide a callback for valid properties.
+    objectLoop: function (obj, callback) {
+      for (var x in obj) {
+        if (obj.hasOwnProperty(x)) {
+          callback(obj[x], x);
+        }
+      }
+    }
+  };
+
+  return {
+    add: function (name, events) {
+      if (!meta.events[name]) meta.events[name] = {};
+
+      // loop through event types (mousemove, click, touchstart, etc.).
+      _funcs.objectLoop(events, function (event, type) {
+        // loop through the functions (doSomethingOnClick, onMouseHighlightThis, etc.).
+
+        _funcs.objectLoop(event, function (func, i) {
+          _funcs.addIndividualEvent(name, type, i, func);
+          _funcs.updateClassEvents(name, type);
+        });
+      });
+    },
+
+    remove: function (name, type, funcName) {
+      _funcs.removeEvent(name, type, funcName);
+    },
+
+    _addNode: function (name, node) {
+      if (!meta.nodes[name]) meta.nodes[name] = [];
+
+      meta.nodes[name].push([node, {}]);
+      _funcs.addPrevListeners(name);
+    },
+
+    _removeNode: function (name, node) {
+      if (meta.nodes[name]) {
+        meta.nodes[name] = meta.nodes[name].filter(function (o) {
+          return !node.isSameNode(o[0]);
+        });
+      }
+    },
+
+    _test: function () {
+      return meta;
+    }
+  };
+};
+
+funcs.listeners = Listeners;
+
 // url should be a valid string path.
 // cbs should be a valid object of callbacks [success] and [error].
 funcs.ajax = function (url, cbs, cache) {
@@ -54,10 +199,16 @@ funcs.controller = {
   scope: function (callback, meta) {
     var route = meta.routes[meta.view.current],
         $scope = route.state;
-    callback($scope, $scope.data, {
-      container: meta.container,
-      loaded: route.hasLoaded ? true : false,
-      loads: route.loads
+
+    setTimeout(function () {
+      callback($scope, $scope.data, {
+        container: meta.container,
+        // this sounds ridiculous but it isn't.
+        // loaded state = false -> 0 -> true.
+        // false && 0 == false.
+        loaded: route.hasLoaded ? true : false,
+        loads: route.loads
+      });
     });
   }
 };
@@ -446,10 +597,10 @@ funcs.mutation = {
   },
 
   // remove nodes that
-  removeNode: function ($currentScope, $oldScope, node) {
+  removeNode: function ($scope, node) {
     if (node.nodeType === 1 && node.hasAttribute("b-name")) {
       var name = node.getAttribute("b-name"),
-          $elem = $currentScope[name] || $oldScope[name];
+          $elem = $scope.current[name] || $scope.old[name];
 
       // unlock $scope[key].self so that I can run Array.prototype.filter on
       // it.
@@ -460,6 +611,8 @@ funcs.mutation = {
       $elem.self = $elem.self.filter(function (o) {
         return !node.isSameNode(o);
       });
+
+      $scope.current.event._removeNode(name, node);
 
       // make immutable again so that users cannot delete $scope[key].self.
       funcs.util.immutable($elem, "self");
@@ -479,6 +632,10 @@ funcs.mutation = {
       allNodes.forEach(function (o, i) {
         if (o.nodeType === 1) {
           self.addEventsToNode($scope.current, o);
+
+          if (o.hasAttribute("b-name")) {
+            $scope.current.event._addNode(o.getAttribute("b-name"), o);
+          }
 
           if (o.hasAttribute("b-repeat")) {
             self.addRepeatToNode($scope.current, o);
@@ -507,7 +664,7 @@ funcs.mutation = {
       var x;
 
       for (x = 0; x < removed.length; x++) {
-        self.removeNode($scope.current, $scope.old, removed[x]);
+        self.removeNode($scope, removed[x]);
       }
 
       for (x = 0; x < added.length; x++) {
@@ -910,6 +1067,8 @@ funcs.scope = {
       var immutable = funcs.util.immutable,
           self = this;
 
+      funcs.scope.repeat($scope);
+
       // make `event` in $scope immutable as well as `add` inside of
       // $scope.event. Also add `data` inside $scope for random user data.
       // create $scope level data object for storing state data.
@@ -927,10 +1086,9 @@ funcs.scope = {
       });
 
       // create event object for adding event functions.
-      immutable($scope, "event", {});
+      immutable($scope, "event", funcs.listeners());
 
-      funcs.scope.repeat($scope);
-
+      /*
       // create the $scope.event.add function to add custom events.
       immutable($scope.event, "add",
         (function (property, event, callback) {
@@ -951,6 +1109,7 @@ funcs.scope = {
           // make thisArg the current state.
         }).bind($scope)
       );
+      */
 
       // creation of a native data object that is bound to the $scope.
       immutable($scope.data, "prop", function (property, key, value) {
@@ -992,20 +1151,6 @@ funcs.scope = {
     return $scope;
   }
 };
-
-/*
-Create $scope.repeat({{name}}) which returns an object that you can push, pop, etc.
-This is stored in $scope.data.repeat[name] and is *locked down*.
-
-The $scope.data.repeat[name] is an object like:
-
-{
-  container: <NODE>,
-  list: []
-}
-
-Where the container is cloned and the list is modified.
-*/
 
 funcs.scope.repeat = function ($scope) {
   var immutable = funcs.util.immutable;

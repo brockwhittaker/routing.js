@@ -22,6 +22,8 @@ funcs.scope = {
       var immutable = funcs.util.immutable,
           self = this;
 
+      funcs.scope.repeat($scope);
+
       // make `event` in $scope immutable as well as `add` inside of
       // $scope.event. Also add `data` inside $scope for random user data.
       // create $scope level data object for storing state data.
@@ -39,10 +41,9 @@ funcs.scope = {
       });
 
       // create event object for adding event functions.
-      immutable($scope, "event", {});
+      immutable($scope, "event", funcs.listeners());
 
-      funcs.scope.repeat($scope);
-
+      /*
       // create the $scope.event.add function to add custom events.
       immutable($scope.event, "add",
         (function (property, event, callback) {
@@ -63,6 +64,7 @@ funcs.scope = {
           // make thisArg the current state.
         }).bind($scope)
       );
+      */
 
       // creation of a native data object that is bound to the $scope.
       immutable($scope.data, "prop", function (property, key, value) {
@@ -104,17 +106,3 @@ funcs.scope = {
     return $scope;
   }
 };
-
-/*
-Create $scope.repeat({{name}}) which returns an object that you can push, pop, etc.
-This is stored in $scope.data.repeat[name] and is *locked down*.
-
-The $scope.data.repeat[name] is an object like:
-
-{
-  container: <NODE>,
-  list: []
-}
-
-Where the container is cloned and the list is modified.
-*/

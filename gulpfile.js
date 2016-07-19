@@ -4,6 +4,7 @@ var uglify = require("gulp-uglify");
 
 var files = [
   "js/components/.init.js",
+  "js/components/listeners.js",
   "js/components/ajax.js",
   "js/components/config.js",
   "js/components/controller.js",

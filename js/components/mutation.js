@@ -89,10 +89,10 @@ funcs.mutation = {
   },
 
   // remove nodes that
-  removeNode: function ($currentScope, $oldScope, node) {
+  removeNode: function ($scope, node) {
     if (node.nodeType === 1 && node.hasAttribute("b-name")) {
       var name = node.getAttribute("b-name"),
-          $elem = $currentScope[name] || $oldScope[name];
+          $elem = $scope.current[name] || $scope.old[name];
 
       // unlock $scope[key].self so that I can run Array.prototype.filter on
       // it.
@@ -103,6 +103,8 @@ funcs.mutation = {
       $elem.self = $elem.self.filter(function (o) {
         return !node.isSameNode(o);
       });
+
+      $scope.current.event._removeNode(name, node);
 
       // make immutable again so that users cannot delete $scope[key].self.
       funcs.util.immutable($elem, "self");
@@ -122,6 +124,10 @@ funcs.mutation = {
       allNodes.forEach(function (o, i) {
         if (o.nodeType === 1) {
           self.addEventsToNode($scope.current, o);
+
+          if (o.hasAttribute("b-name")) {
+            $scope.current.event._addNode(o.getAttribute("b-name"), o);
+          }
 
           if (o.hasAttribute("b-repeat")) {
             self.addRepeatToNode($scope.current, o);
@@ -150,7 +156,7 @@ funcs.mutation = {
       var x;
 
       for (x = 0; x < removed.length; x++) {
-        self.removeNode($scope.current, $scope.old, removed[x]);
+        self.removeNode($scope, removed[x]);
       }
 
       for (x = 0; x < added.length; x++) {

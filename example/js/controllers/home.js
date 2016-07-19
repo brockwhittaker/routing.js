@@ -33,7 +33,7 @@ route.controller(function ($scope, $data, view) {
   };
 
   $scope.deleteMe = function () {
-    $messages.remove(this);
+    //$messages.remove(this);
   };
 
 
@@ -43,5 +43,13 @@ route.controller(function ($scope, $data, view) {
 
   names.forEach(function (o) {
     $names.push(o);
+  });
+
+  $scope.event.add("messages", {
+    click: {
+      deleteMe: function () {
+        $messages.remove(this);
+      }
+    }
   });
 });
