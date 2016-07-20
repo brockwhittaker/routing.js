@@ -1,7 +1,7 @@
 funcs.scope.save = function ($scope, meta, config) {
   var storage = new Storage.namespace(meta.view.current);
 
-  storage.set("data", $scope.data, config ? config.expire : false);
+  storage.set("data", $scope.data, new Date().getTime());
 };
 
 funcs.scope.retrieve = function ($scope, meta) {
@@ -11,10 +11,16 @@ funcs.scope.retrieve = function ($scope, meta) {
   return data;
 };
 
-funcs.scope.isExpired = function ($scope, meta) {
+funcs.scope.lastUpdated = function ($scope, meta) {
   var storage = new Storage.namespace(meta.view.current);
 
-  return storage.isExpired("data");
+  return storage.lastUpdated("data");
+};
+
+funcs.scope.remove = function ($scope, meta) {
+  var storage = new Storage.namespace(meta.current.view);
+
+  storage.set("data", {}, new Date().getTime());
 };
 
 funcs.scope.apply = function ($scope, meta) {
@@ -22,7 +28,10 @@ funcs.scope.apply = function ($scope, meta) {
       data = storage.get("data");
 
   if (typeof data == "object") {
+    data = data.value;
+
     for (var x in data) {
+      console.log("printing", x, data);
       $scope.data[x] = data[x];
     }
 

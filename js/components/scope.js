@@ -37,12 +37,12 @@ funcs.scope = {
 
       // apply all saved `$scope` data stored in localStorage to the `$scope.data`.
       immutable($scope.data, "apply", function (config) {
-        funcs.scope.apply($scope, meta, config);
+        return funcs.scope.apply($scope, meta, config);
       });
 
       // check if the current scope's data has expired yet.
-      immutable($scope.data, "isExpired", function () {
-        return funcs.scope.isExpired($scope, meta);
+      immutable($scope.data, "lastUpdated", function () {
+        return funcs.scope.lastUpdated($scope, meta);
       });
 
       // safe retrieval of a property that creates it if it doesn't exist.

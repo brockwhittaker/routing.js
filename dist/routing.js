@@ -189,14 +189,9 @@ funcs.ajax = function (url, cbs, cache) {
 var Storage = {
   namespace: function (namespace) {
     return {
-      __expired: function (timestamp) {
-        var now = new Date().getTime();
-
-        return timestamp ? timestamp < now : false;
-      },
-
-      set: function (key, value, expire) {
-        var obj = {value: value, expire: expire};
+      set: function (key, value, lastUpdated) {
+        var data = this.get(key);
+        var obj = {value: value, lastUpdated: lastUpdated};
 
         localStorage.setItem(namespace + "_" + key, JSON.stringify(obj));
       },
@@ -204,27 +199,17 @@ var Storage = {
       get: function (key) {
         var data = localStorage.getItem(namespace + "_" + key);
 
-        if (data && !this.__expired()) {
-          data = JSON.parse(data);
-
-          if (!this.__expired(data.expire)) {
-            return data.value;
-          } else {
-            this.set(key, {});
-          }
+        if (data) {
+          return JSON.parse(data);
         } else return null;
       },
 
-      isExpired: function (key) {
-        var data = localStorage.getItem(namespace + "_" + key);
+      lastUpdated: function (key) {
+        var data = this.get(key);
 
         if (data) {
-          data = JSON.parse(data);
-
-          console.log(data);
-
-          return this.__expired(data.expire);
-        } else return true;
+          return data.lastUpdated;
+        } else return false;
       }
     };
   }
@@ -1137,12 +1122,12 @@ funcs.scope = {
 
       // apply all saved `$scope` data stored in localStorage to the `$scope.data`.
       immutable($scope.data, "apply", function (config) {
-        funcs.scope.apply($scope, meta, config);
+        return funcs.scope.apply($scope, meta, config);
       });
 
       // check if the current scope's data has expired yet.
-      immutable($scope.data, "isExpired", function () {
-        return funcs.scope.isExpired($scope, meta);
+      immutable($scope.data, "lastUpdated", function () {
+        return funcs.scope.lastUpdated($scope, meta);
       });
 
       // safe retrieval of a property that creates it if it doesn't exist.
@@ -1226,7 +1211,7 @@ funcs.scope = {
 funcs.scope.save = function ($scope, meta, config) {
   var storage = new Storage.namespace(meta.view.current);
 
-  storage.set("data", $scope.data, config ? config.expire : false);
+  storage.set("data", $scope.data, new Date().getTime());
 };
 
 funcs.scope.retrieve = function ($scope, meta) {
@@ -1236,10 +1221,16 @@ funcs.scope.retrieve = function ($scope, meta) {
   return data;
 };
 
-funcs.scope.isExpired = function ($scope, meta) {
+funcs.scope.lastUpdated = function ($scope, meta) {
   var storage = new Storage.namespace(meta.view.current);
 
-  return storage.isExpired("data");
+  return storage.lastUpdated("data");
+};
+
+funcs.scope.remove = function ($scope, meta) {
+  var storage = new Storage.namespace(meta.current.view);
+
+  storage.set("data", {}, new Date().getTime());
 };
 
 funcs.scope.apply = function ($scope, meta) {
@@ -1247,7 +1238,10 @@ funcs.scope.apply = function ($scope, meta) {
       data = storage.get("data");
 
   if (typeof data == "object") {
+    data = data.value;
+
     for (var x in data) {
+      console.log("printing", x, data);
       $scope.data[x] = data[x];
     }
 

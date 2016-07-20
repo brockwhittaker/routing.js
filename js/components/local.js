@@ -1,14 +1,9 @@
 var Storage = {
   namespace: function (namespace) {
     return {
-      __expired: function (timestamp) {
-        var now = new Date().getTime();
-
-        return timestamp ? timestamp < now : false;
-      },
-
-      set: function (key, value, expire) {
-        var obj = {value: value, expire: expire};
+      set: function (key, value, lastUpdated) {
+        var data = this.get(key);
+        var obj = {value: value, lastUpdated: lastUpdated};
 
         localStorage.setItem(namespace + "_" + key, JSON.stringify(obj));
       },
@@ -16,27 +11,17 @@ var Storage = {
       get: function (key) {
         var data = localStorage.getItem(namespace + "_" + key);
 
-        if (data && !this.__expired()) {
-          data = JSON.parse(data);
-
-          if (!this.__expired(data.expire)) {
-            return data.value;
-          } else {
-            this.set(key, {});
-          }
+        if (data) {
+          return JSON.parse(data);
         } else return null;
       },
 
-      isExpired: function (key) {
-        var data = localStorage.getItem(namespace + "_" + key);
+      lastUpdated: function (key) {
+        var data = this.get(key);
 
         if (data) {
-          data = JSON.parse(data);
-
-          console.log(data);
-
-          return this.__expired(data.expire);
-        } else return true;
+          return data.lastUpdated;
+        } else return false;
       }
     };
   }
