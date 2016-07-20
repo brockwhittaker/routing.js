@@ -273,3 +273,28 @@ route.controller(function ($scope, $data, view) {
 ```
 
 So now if we go to the list view and run inside the controller, `$data.temperature` will exist and be set to "78F".
+
+##Saving View-Level Data
+Any data that is stored in the `$scope.data` (`$data`) object can be saved in `localStorage` to persist between page loads.
+
+###Operations
+
+There are three operations to the `$scope.data` persistence mechanism:
+
+1. `$data.save`: This saves all data in the `$scope.data` object.
+
+2. `$data.retrieve`: This retrieves all data stored in `localStorage` under this `$scope` previously.
+
+3. `$data.apply`: This applies all data stored in `localStorage` under this `$scope` previously to the `$scope`.
+
+###Expiration
+
+Data can either be stored forever or for a limited time. If you choose to store for a limited time, in the `$data.save` function, add the argument `config`:
+
+```javascript
+var config = { expire: 1468980466714 };
+
+$data.save(config);
+```
+
+This will now expire on `Tue Jul 19 2016 19:07:46 GMT-0700 (PDT)`, which means that whenever the data is attempted to be fetched after that, it will be removed from the storage.

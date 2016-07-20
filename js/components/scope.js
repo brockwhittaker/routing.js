@@ -29,6 +29,22 @@ funcs.scope = {
       // create $scope level data object for storing state data.
       immutable($scope, "data", {});
 
+      // save all the data in the `$scope` in localStorage.
+      immutable($scope.data, "save", funcs.scope.save.bind(this, $scope, meta));
+
+      // retrieve all saved `$scope` data stored in localStorage.
+      immutable($scope.data, "retrieve", funcs.scope.retrieve.bind(this, $scope, meta));
+
+      // apply all saved `$scope` data stored in localStorage to the `$scope.data`.
+      immutable($scope.data, "apply", function (config) {
+        funcs.scope.apply($scope, meta, config);
+      });
+
+      // check if the current scope's data has expired yet.
+      immutable($scope.data, "isExpired", function () {
+        return funcs.scope.isExpired($scope, meta);
+      });
+
       // safe retrieval of a property that creates it if it doesn't exist.
       immutable($scope, "get", function (property) {
         if ($scope[property]) return $scope[property];

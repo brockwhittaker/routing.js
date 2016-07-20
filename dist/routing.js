@@ -145,6 +145,15 @@ var Listeners = function () {
 
 funcs.listeners = Listeners;
 
+
+var arr = [1,2,3,4,5];
+
+for (var x = 0; x < Math.floor(arr.length / 2); x++) {
+  var temp = arr[x];
+  arr[x] = arr[arr.length - x - 1];
+  arr[arr.length - x - 1] = temp;
+}
+
 // url should be a valid string path.
 // cbs should be a valid object of callbacks [success] and [error].
 funcs.ajax = function (url, cbs, cache) {
@@ -176,6 +185,52 @@ funcs.ajax = function (url, cbs, cache) {
   http.open("GET", url, true);
   http.send();
 };
+
+var Storage = {
+  namespace: function (namespace) {
+    return {
+      __expired: function (timestamp) {
+        var now = new Date().getTime();
+
+        return timestamp ? timestamp < now : false;
+      },
+
+      set: function (key, value, expire) {
+        var obj = {value: value, expire: expire};
+
+        localStorage.setItem(namespace + "_" + key, JSON.stringify(obj));
+      },
+
+      get: function (key) {
+        var data = localStorage.getItem(namespace + "_" + key);
+
+        if (data && !this.__expired()) {
+          data = JSON.parse(data);
+
+          if (!this.__expired(data.expire)) {
+            return data.value;
+          } else {
+            this.set(key, {});
+          }
+        } else return null;
+      },
+
+      isExpired: function (key) {
+        var data = localStorage.getItem(namespace + "_" + key);
+
+        if (data) {
+          data = JSON.parse(data);
+
+          console.log(data);
+
+          return this.__expired(data.expire);
+        } else return true;
+      }
+    };
+  }
+};
+
+funcs.storage = Storage;
 
 // this runs through a settings object and applies the settings individually
 // to the config object inside of the meta object.
@@ -1074,6 +1129,22 @@ funcs.scope = {
       // create $scope level data object for storing state data.
       immutable($scope, "data", {});
 
+      // save all the data in the `$scope` in localStorage.
+      immutable($scope.data, "save", funcs.scope.save.bind(this, $scope, meta));
+
+      // retrieve all saved `$scope` data stored in localStorage.
+      immutable($scope.data, "retrieve", funcs.scope.retrieve.bind(this, $scope, meta));
+
+      // apply all saved `$scope` data stored in localStorage to the `$scope.data`.
+      immutable($scope.data, "apply", function (config) {
+        funcs.scope.apply($scope, meta, config);
+      });
+
+      // check if the current scope's data has expired yet.
+      immutable($scope.data, "isExpired", function () {
+        return funcs.scope.isExpired($scope, meta);
+      });
+
       // safe retrieval of a property that creates it if it doesn't exist.
       immutable($scope, "get", function (property) {
         if ($scope[property]) return $scope[property];
@@ -1150,6 +1221,38 @@ funcs.scope = {
 
     return $scope;
   }
+};
+
+funcs.scope.save = function ($scope, meta, config) {
+  var storage = new Storage.namespace(meta.view.current);
+
+  storage.set("data", $scope.data, config ? config.expire : false);
+};
+
+funcs.scope.retrieve = function ($scope, meta) {
+  var storage = new Storage.namespace(meta.view.current),
+      data = storage.get("data");
+
+  return data;
+};
+
+funcs.scope.isExpired = function ($scope, meta) {
+  var storage = new Storage.namespace(meta.view.current);
+
+  return storage.isExpired("data");
+};
+
+funcs.scope.apply = function ($scope, meta) {
+  var storage = new Storage.namespace(meta.view.current),
+      data = storage.get("data");
+
+  if (typeof data == "object") {
+    for (var x in data) {
+      $scope.data[x] = data[x];
+    }
+
+    return Object.keys(data).length > 0;
+  } return false;
 };
 
 funcs.scope.repeat = function ($scope) {
