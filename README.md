@@ -190,8 +190,8 @@ route.controller(function ($scope, $data, view) {
 ##Quick Property Setting
 For a fast way to set properties for any element with a `b-name` attribute, use the `$scope.edit` function to set the following values:
 
-1. html: Set the innerHTML of the element.
-2. text: set the innerText of the element.
+1. `html`: Set the innerHTML of the element.
+2. `text`: set the innerText of the element.
 
 You can do this with a simple key-value object where the keys are the `b-name` and the values are the value to place within. So below in the HTML, you'd create markup with `b-name` attributes that can be accessed and referenced in the `$scope`.
 
