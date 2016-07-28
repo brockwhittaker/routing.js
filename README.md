@@ -129,8 +129,8 @@ For example let's say you have a simple messaging app and you want a new fragmen
 
 ```html
 <div b-repeat="messages">
-  <div b-obj="username"></div>
-  <div b-obj="message"></div>
+  <div b-prop="username"></div>
+  <div b-prop="message"></div>
 </div>
 ```
 
@@ -167,8 +167,8 @@ The benefit of using the `b-repeat` feature is that it can be done at any time a
 
 ```html
 <div b-repeat="messages" b-click="deleteMe">
-  <div b-obj="username"></div>
-  <div b-obj="message"></div>
+  <div b-prop="username"></div>
+  <div b-prop="message"></div>
 </div>
 ```
 
@@ -186,6 +186,84 @@ route.controller(function ($scope, $data, view) {
   $messages.push({ username: "Brock", message: "Hello World!" });
 });
 ```
+
+##Modify HTML Dynamically
+
+In any `b-repeat` function, you can modify the elements by modifying the object returned in the `$repeat.modify` callback. To illustrate this more clearly let's take a look at the example below. There is a list of five people who we want to create a `b-repeat` for. The HTML is:
+
+```html
+<div class="ind-person" b-repeat="people">
+  <div b-prop="name"></div>
+  <div class="stats">
+    <div b-prop="gender"></div>
+    <div b-prop="age"></div>
+    <div b-prop="height"></div>
+  </div>
+</div>
+```
+
+And the JS with the data below that is necessary to create the `repeat`.
+
+```javascript
+var people = [
+  { name: "Brock Whittaker", gender: "M", age: 19, height: 70 },
+  { name: "Andrew Peterson", gender: "M", age: 20, height: 71 },
+  { name: "Bob Testersen", gender: "M", age: 28, height: 69 },
+  { name: "Mary Shilling", gender: "M", age: 19, height: 65 },
+  { name: "John Doe", gender: "M", age: 37, height: 74 },
+];
+
+route.controller(function ($scope, $data, view) {
+  var $people = $scope.repeat("people");
+
+  $people.push(people);
+})
+```
+
+Now, if I want to modify the contents of the first index and change my name to "Chris Whittaker" and change my age to 20, I can do so like:
+
+```javascript
+$people.modify(0, function (obj) {
+  obj.name = "Chris Whittaker";
+  obj.age = 20;
+});
+```
+
+And the HTML will automatically regenerate with the new information. If you want to modify all of them however to remove all genders, you can do so with the `$repeat.modifyAll` function shown below.
+
+```javascript
+$people.modifyAll(function (obj) {
+  obj.gender = "N/A";
+});
+```
+
+These features also apply to `b-repeat-in`, however they are accessed a bit differently. As you may know, you can assign a `b-repeat` to a variable, but `b-repeat-in` you cannot. The variable for the `b-repeat-in` essentially becomes stored in the `b-repeat` directly above it in the HTML. So in the below example, the `b-repeat-in` with the name `friends` would be stored in the element with the class `.person` under the `repeat` property.
+
+```html
+<div class="person" b-repeat="person" b-name="person">
+  <div b-prop="name"></div>
+  <div class="friend-list">
+    <h1>Friends</h1>
+    <div b-repeat-in="friends">
+      <div b-prop="name"></div>
+    </div>
+  </div>
+</div>
+```
+
+To access the data stored in the `b-repeat-in`, or to add to the list, modify, or delete, you have to query the `.person` element, and then refer to it's `[Node].repeat` component with the name of the `b-repeat-in`. To for instance loop through all `person` types and remove all `b-repeat-in`'s of name `friends`, you would do the below.
+
+```javascript
+var peopleList = $scope.get("person").self;
+
+peopleList.forEach(function (person) {
+  person.repeat.friends.filter(function () {
+    return 0;
+  });
+});
+```
+
+If there are multiple `b-repeat-in` functions under a parent, they will all be in the `.repeat` property assigned by their `b-repeat-in` name/path.
 
 ##Quick Property Setting
 For a fast way to set properties for any element with a `b-name` attribute, use the `$scope.edit` function to set the following values:
