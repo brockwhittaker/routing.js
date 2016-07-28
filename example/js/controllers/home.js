@@ -29,7 +29,6 @@ route.controller(function ($scope, $data, view) {
   /* -- $scope listeners -- */
   $scope.submit = function () {
     var data = $scope.input.val(["messageInput"], $scope._.CLEAR_INPUT);
-
     $messages.push({ username: "brock", message: data.messageInput });
   };
 
@@ -43,4 +42,6 @@ route.controller(function ($scope, $data, view) {
       }
     }
   });
+
+  window.$messages = $messages;
 });

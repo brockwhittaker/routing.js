@@ -229,10 +229,10 @@ $people.modify(0, function (obj) {
 });
 ```
 
-And the HTML will automatically regenerate with the new information. If you want to modify all of them however to remove all genders, you can do so with the `$repeat.modifyAll` function shown below.
+And the HTML will automatically regenerate with the new information. If you want to modify all of them however to remove all genders, you can do so with the `$repeat.modifyEach` function shown below.
 
 ```javascript
-$people.modifyAll(function (obj) {
+$people.modifyEach(function (obj) {
   obj.gender = "N/A";
 });
 ```
