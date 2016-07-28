@@ -254,9 +254,11 @@ These features also apply to `b-repeat-in`, however they are accessed a bit diff
 To access the data stored in the `b-repeat-in`, or to add to the list, modify, or delete, you have to query the `.person` element, and then refer to it's `[Node].repeat` component with the name of the `b-repeat-in`. To for instance loop through all `person` types and remove all `b-repeat-in`'s of name `friends`, you would do the below.
 
 ```javascript
+// list all elements with a b-name of `person`.
 var peopleList = $scope.get("person").self;
 
 peopleList.forEach(function (person) {
+  // remove all b-repeat-in of prop `friends`.
   person.repeat.friends.filter(function () {
     return 0;
   });

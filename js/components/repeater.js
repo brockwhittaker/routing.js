@@ -1,45 +1,57 @@
-if (!Object.assign) {
-  Object.defineProperty(Object, 'assign', {
-    enumerable: false,
-    configurable: true,
-    writable: true,
-    value: function(target) {
-      'use strict';
-      if (target === undefined || target === null) {
-        throw new TypeError('Cannot convert first argument to object');
-      }
-
-      var to = Object(target);
-      for (var i = 1; i < arguments.length; i++) {
-        var nextSource = arguments[i];
-        if (nextSource === undefined || nextSource === null) {
-          continue;
-        }
-        nextSource = Object(nextSource);
-
-        var keysArray = Object.keys(nextSource);
-        for (var nextIndex = 0, len = keysArray.length; nextIndex < len; nextIndex++) {
-          var nextKey = keysArray[nextIndex];
-          var desc = Object.getOwnPropertyDescriptor(nextSource, nextKey);
-          if (desc !== undefined && desc.enumerable) {
-            to[nextKey] = nextSource[nextKey];
-          }
-        }
-      }
-      return to;
-    }
-  });
-}
-
 var Repeater = function (name, node, arr) {
   var meta = {
     original: null,
     marker: null,
     data: [],
-    elems: []
+    elems: [],
+    viewModifier: {}
   };
 
   var _funcs = {
+    clone: function (obj) {
+      // http://stackoverflow.com/questions/728360/how-do-i-correctly-clone-a-javascript-object.
+      // answer provided by `A. Levy` -- retrieved on 7/28/16.
+        var copy;
+
+        // Handle the 3 simple types, and null or undefined
+        if (null === obj || typeof obj !== "object") return obj;
+
+        // Handle Date
+        if (obj instanceof Date) {
+            copy = new Date();
+            copy.setTime(obj.getTime());
+            return copy;
+        }
+
+        // Handle Array
+        if (obj instanceof Array) {
+            copy = [];
+            for (var i = 0, len = obj.length; i < len; i++) {
+                copy[i] = this.clone(obj[i]);
+            }
+            return copy;
+        }
+
+        // Handle Object
+        if (obj instanceof Object) {
+            copy = {};
+            for (var attr in obj) {
+                if (obj.hasOwnProperty(attr)) copy[attr] = this.clone(obj[attr]);
+            }
+            return copy;
+        }
+
+        throw new Error("Unable to copy obj! Its type isn't supported.");
+    },
+
+    objectLoop: function (obj, callback) {
+      for (var x in obj) {
+        if (obj.hasOwnProperty(x)) {
+          callback(obj[x], x);
+        }
+      }
+    },
+
     generateID: function () {
       return (Math.random() * 1E16).toString(32);
     },
@@ -109,25 +121,44 @@ var Repeater = function (name, node, arr) {
         return copy;
       },
 
-      set: function (node, obj) {
+      set: function (node, obj, viewModifier) {
         var map = {
           "b-prop": "innerHTML",
           "b-src": "src",
-          "b-href": "href"
+          "b-href": "href",
+          "b-style": null
         };
 
-        var attr, val;
-        for (var x in map) {
-          if (map.hasOwnProperty(x)) {
-            attr = node.getAttribute(x);
-            if (typeof attr !== "undefined" && attr !== null) {
-              val = _funcs.parse.dotToObj(obj, attr);
+        var attr, val, cb;
 
-              //node.removeAttribute(x);
-              node[map[x]] = val;
+        _funcs.objectLoop(map, function (o, i) {
+          attr = node.getAttribute(i);
+
+          if (typeof attr !== "undefined" && attr !== null) {
+            switch (i) {
+              // if the attribute `b-style` is present, look for an object of
+              // props to set and if they exist, apply them to `node.style`.
+              case "b-style":
+                val = _funcs.parse.dotToObj(obj, attr);
+
+                if (val && typeof val == "object") {
+                  _funcs.objectLoop(val, function (value, key) {
+                    node.style[key] = value;
+                  });
+                }
+                break;
+
+              // look for the value inside the object by prop, as well as a
+              // formatter function for the HTML. Try to give a formatted answer
+              // before a raw data answer.
+              default:
+                val = _funcs.parse.dotToObj(obj, attr);
+                cb = _funcs.parse.dotToObj(viewModifier || {}, attr);
+
+                node[o] = cb ? cb(val) : val;
             }
           }
-        }
+        });
       },
 
       isInsideBRepeatIn: function (node, parent) {
@@ -141,9 +172,11 @@ var Repeater = function (name, node, arr) {
       }
     },
 
-    createNodeFromTemplate: function (obj) {
+    createNodeFromTemplate: function (obj, viewModifier) {
       var parent = meta.original.cloneNode(true),
           nodes = parent.querySelectorAll("*");
+
+      if (viewModifier) meta.viewModifier = viewModifier;
 
       var path, arr;
 
@@ -164,7 +197,7 @@ var Repeater = function (name, node, arr) {
         }
 
         if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
-          this.node.set(nodes[x], obj);
+          this.node.set(nodes[x], obj, viewModifier);
         }
       }
 
@@ -181,7 +214,7 @@ var Repeater = function (name, node, arr) {
 
       for (var x = 0; x < nodes.length; x++) {
         if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
-          this.node.set(nodes[x], obj);
+          this.node.set(nodes[x], obj, meta.viewModifier);
         }
       }
 
@@ -196,11 +229,11 @@ var Repeater = function (name, node, arr) {
           path = path.split(/\./);
 
           for (var x = 0; x < path.length; x++) {
+            // go deeper as long as you can to find the specified object.
             if (typeof obj[path[x]] !== "undefined" && obj[path[x]] !== null) {
               obj = obj[path[x]];
-            } else {
-              // console.warn("Warning. Path " + path.join(".") + " does not exist.");
-            }
+            // if it cannot complete the whole path, just return early `undefined`.
+            } else return;
           }
 
           return obj;
@@ -288,13 +321,18 @@ var Repeater = function (name, node, arr) {
   };
 
   var actions = {
-    push: function (data, callback) {
+    // the data is the raw data to be stored, but the viewModifier is an object
+    // of callbacks in the same structure as data that specifies how some props
+    // should be rendered before being displayed.
+    push: function (data, viewModifier, callback) {
       if (Array.isArray(data)) {
-        data.forEach((function (o) {
-          this.push(o, callback);
+        data.forEach((function (o, i) {
+          this.push(o, viewModifier, callback);
         }).bind(this));
       } else {
-        var node = _funcs.createNodeFromTemplate(data);
+        // create a node with data and a view modifying template.
+        var node = _funcs.createNodeFromTemplate(data, viewModifier || meta.viewModifier);
+        // bind a randomly generated ID to the node.
         _funcs.bindID(node, data);
 
         _funcs.DOM.push(node);
@@ -305,19 +343,30 @@ var Repeater = function (name, node, arr) {
         if (callback) callback(node);
       }
     },
-    unshift: function (data, callback) {
-      var node = _funcs.createNodeFromTemplate(data);
-      _funcs.bindID(node, data);
+    // instead of pushing to the end of the sequence, add to the beginning of
+    // the sequence right after the marker.
+    unshift: function (data, viewModifier, callback) {
+      if (Array.isArray(data)) {
+        data.forEach(function (o, i) {
+          this.unshift(o, viewModifier, callback);
+        });
+      } else {
+        var node = _funcs.createNodeFromTemplate(data, viewModifier || meta.viewModifier);
 
-      _funcs.DOM.unshift(node);
+        _funcs.bindID(node, data);
 
-      meta.data.unshift(data);
-      meta.elems.unshift(node);
+        _funcs.DOM.unshift(node);
 
-      if (callback) callback(node);
+        meta.data.unshift(data);
+        meta.elems.unshift(node);
+
+        if (callback) callback(node);
+      }
     },
-    at: function (data, index, callback) {
-      var node = _funcs.createNodeFromTemplate(data);
+
+    // index has been moved to the first position instead of being the second (??).
+    at: function (index, data, viewModifier, callback) {
+      var node = _funcs.createNodeFromTemplate(data, viewModifier || meta.viewModifier);
       _funcs.bindID(node, data);
 
       _funcs.DOM.at(node, index);
@@ -327,12 +376,14 @@ var Repeater = function (name, node, arr) {
 
       if (callback) callback(node);
     },
+    // remove the last node from the `b-repeat`.
     pop: function () {
       _funcs.DOM.pop();
 
       meta.data.pop();
       meta.elems.pop();
     },
+    // remove the first node from the `b-repeat`.
     shift: function () {
       _funcs.DOM.shift();
 
@@ -377,7 +428,7 @@ var Repeater = function (name, node, arr) {
       });
     },
     get: function (index) {
-      var arr = Object.assign([], meta.data);
+      var arr = _funcs.clone(meta.data);
 
       arr.forEach(function (o) {
         delete o.__meta;
@@ -385,8 +436,15 @@ var Repeater = function (name, node, arr) {
 
       return arr;
     },
-    modify: function (index, callback) {
+    modify: function (index, viewModifier, callback) {
       var i = 0, id;
+
+      // this means they actually only gave a callback.
+      if (typeof viewModifier == "function") {
+        callback = viewModifier;
+        viewModifier = null;
+      }
+
       if (typeof index == "object") {
         id = index.dataset.b_id;
 
@@ -402,7 +460,11 @@ var Repeater = function (name, node, arr) {
 
       callback(meta.data[index]);
 
-      var parent = _funcs.createNodeFromNode(meta.data[index], meta.elems[index]);
+      var parent = _funcs.createNodeFromNode(
+        meta.data[index],
+        meta.elems[index],
+        viewModifier || meta.viewModifier
+      );
 
       // give the new parent the old repeat attribute.
       parent.repeat = meta.elems[index].repeat;
@@ -412,12 +474,27 @@ var Repeater = function (name, node, arr) {
       meta.elems[index] = parent;
     },
 
-    modifyEach: function (callback) {
+    modifyEach: function (viewModifier, callback) {
       var len = meta.elems.length;
 
-      for (var x = 0; x < len; x++) {
-        this.modify(x, callback.bind(null, meta.data[x], x));
+      // this means they actually only gave a callback.
+      if (typeof viewModifier == "function") {
+        callback = viewModifier;
+        viewModifier = null;
       }
+
+      for (var x = 0; x < len; x++) {
+        this.modify(x, viewModifier, callback.bind(null, meta.data[x], x));
+      }
+    },
+
+    modifyView: function (viewModifier) {
+      meta.viewModifier = viewModifier;
+
+      // trigger refresh with the new viewModifier.
+      this.modifyEach(function () {
+        // do nothing.
+      });
     }
   };
 

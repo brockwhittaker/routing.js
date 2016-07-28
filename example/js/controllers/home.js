@@ -1,5 +1,5 @@
 var messages = [
-  { username: "brock", message: "Hey, what's up?" },
+  { username: "brock", message: "Hey, what's up?", style: { color: "red", fontWeight: 300 } },
   { username: "anon", message: "Not much, you?" },
   { username: "brock", message: "Just walking home from work." },
   { username: "anon", message: "Where are you from?" },
@@ -32,7 +32,14 @@ route.controller(function ($scope, $data, view) {
     $messages.push({ username: "brock", message: data.messageInput });
   };
 
-  $messages.push(messages);
+  $messages.push(messages, {
+    username: function (name) {
+      return "username: " + name;
+    },
+    message: function (msg) {
+      return "This message is hidden.";
+    }
+  });
   $names.push(names);
 
   $scope.event.add("messages", {
@@ -40,6 +47,9 @@ route.controller(function ($scope, $data, view) {
       deleteMe: function () {
         $messages.remove(this);
       }
+    },
+    mouseenter: function () {
+
     }
   });
 
