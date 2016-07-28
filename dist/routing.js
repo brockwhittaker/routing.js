@@ -7,6 +7,16 @@ var Listeners = function () {
   };
 
   var _funcs = {
+    findInArray: function (arr, callback) {
+      var flag = false;
+
+      arr.forEach(function (o) {
+        flag = flag || callback(o);
+      });
+
+      return flag;
+    },
+
     addListener: function (node, name, type) {
       var self = this;
 
@@ -47,7 +57,15 @@ var Listeners = function () {
     addIndividualEvent: function (bName, event, funcName, func) {
       if (!meta.events[bName][event]) meta.events[bName][event] = [];
 
-      meta.events[bName][event].push([func, funcName]);
+      var ifFuncExists = function (o) {
+        return o[1] == funcName;
+      };
+
+      if (!this.findInArray(meta.events[bName][event], ifFuncExists)) {
+        meta.events[bName][event].push([func, funcName]);
+      } else {
+        console.warn("A function with the name `" + funcName + "` already exists.");
+      }
     },
 
     removeEvent: function (name, type, funcName) {
@@ -72,7 +90,8 @@ var Listeners = function () {
         // start from the newest nodes.
         // once you reach a node that has an EL, all before it should/will have one.
         var node;
-        for (var x = meta.nodes[name].length - 1; x > 0; x--) {
+        // BUG: I put x > 0, not x >= 0. BAD.
+        for (var x = meta.nodes[name].length - 1; x >= 0; x--) {
           // in structure [node, {types}].
           node = meta.nodes[name][x];
 
@@ -144,15 +163,6 @@ var Listeners = function () {
 };
 
 funcs.listeners = Listeners;
-
-
-var arr = [1,2,3,4,5];
-
-for (var x = 0; x < Math.floor(arr.length / 2); x++) {
-  var temp = arr[x];
-  arr[x] = arr[arr.length - x - 1];
-  arr[arr.length - x - 1] = temp;
-}
 
 // url should be a valid string path.
 // cbs should be a valid object of callbacks [success] and [error].
@@ -631,8 +641,6 @@ funcs.mutation = {
   addRepeatToNode: function ($scope, node) {
     var repeatName = node.getAttribute("b-repeat");
 
-    console.log("repeat", node);
-
     funcs.util.immutable($scope.data.repeat, repeatName, funcs.repeater(repeatName, node));
   },
 
@@ -714,6 +722,39 @@ funcs.mutation = {
   }
 };
 
+if (!Object.assign) {
+  Object.defineProperty(Object, 'assign', {
+    enumerable: false,
+    configurable: true,
+    writable: true,
+    value: function(target) {
+      'use strict';
+      if (target === undefined || target === null) {
+        throw new TypeError('Cannot convert first argument to object');
+      }
+
+      var to = Object(target);
+      for (var i = 1; i < arguments.length; i++) {
+        var nextSource = arguments[i];
+        if (nextSource === undefined || nextSource === null) {
+          continue;
+        }
+        nextSource = Object(nextSource);
+
+        var keysArray = Object.keys(nextSource);
+        for (var nextIndex = 0, len = keysArray.length; nextIndex < len; nextIndex++) {
+          var nextKey = keysArray[nextIndex];
+          var desc = Object.getOwnPropertyDescriptor(nextSource, nextKey);
+          if (desc !== undefined && desc.enumerable) {
+            to[nextKey] = nextSource[nextKey];
+          }
+        }
+      }
+      return to;
+    }
+  });
+}
+
 var Repeater = function (name, node, arr) {
   var meta = {
     original: null,
@@ -733,6 +774,9 @@ var Repeater = function (name, node, arr) {
         parent.index = x;
 
         meta.marker.parentNode.insertBefore(parent, meta.marker);
+
+        meta.elems.push(parent);
+        meta.data.push(arr[x]);
       }
 
       meta.marker.parentNode.removeChild(meta.marker);
@@ -759,7 +803,6 @@ var Repeater = function (name, node, arr) {
       node.parentNode.removeChild(node);
 
       if (arr) {
-
         this.generateFromArray(arr, actions);
         //document.body.removeChild(meta.marker);
       }
@@ -782,7 +825,10 @@ var Repeater = function (name, node, arr) {
       store: function (node) {
         var copy = node.cloneNode(true);
 
-        copy.removeAttribute("b-repeat-in");
+        if (copy.hasAttribute("b-repeat-in")){
+          copy.removeAttribute("b-repeat-in");
+          copy.setAttribute("b-repeated-in", true);
+        }
 
         return copy;
       },
@@ -801,17 +847,18 @@ var Repeater = function (name, node, arr) {
             if (typeof attr !== "undefined" && attr !== null) {
               val = _funcs.parse.dotToObj(obj, attr);
 
-              node.removeAttribute(x);
+              //node.removeAttribute(x);
               node[map[x]] = val;
             }
           }
         }
       },
 
-      isInsideBRepeatIn: function (node) {
+      isInsideBRepeatIn: function (node, parent) {
         while (node.parentNode) {
           node = node.parentNode;
-          if (node.hasAttribute("b-repeat-in")) return true;
+          if (node.isSameNode(parent)) return false;
+          else if (node.hasAttribute("b-repeat-in") || node.hasAttribute("b-repeated-in")) return true;
         }
 
         return false;
@@ -829,10 +876,35 @@ var Repeater = function (name, node, arr) {
           path = nodes[x].getAttribute("b-repeat-in");
           arr = _funcs.parse.dotToObj(obj, path);
 
-          Repeater(null, nodes[x], arr);
+          if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
+            if (!parent.repeat) parent.repeat = {};
+            var name = nodes[x].getAttribute("b-name");
+
+            if (name) parent.repeat[name] = Repeater(null, nodes[x], arr);
+            else parent.repeat[path] = Repeater(null, nodes[x], arr);
+          }
+
+          console.log(parent, parent.repeat);
         }
 
-        if (!this.node.isInsideBRepeatIn(nodes[x])) {
+        if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
+          this.node.set(nodes[x], obj);
+        }
+      }
+
+      parent.removeAttribute("b-repeat");
+
+      return parent;
+    },
+
+    createNodeFromNode: function (obj, node) {
+      var parent = node.cloneNode(true),
+          nodes = parent.querySelectorAll("*");
+
+      var path, arr;
+
+      for (var x = 0; x < nodes.length; x++) {
+        if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
           this.node.set(nodes[x], obj);
         }
       }
@@ -925,6 +997,10 @@ var Repeater = function (name, node, arr) {
 
       removeAt: function (index) {
         this._inner.removeAt(index);
+      },
+
+      replace: function (old_node, new_node) {
+        old_node.parentNode.replaceChild(new_node, old_node);
       }
     },
     bindID: function (node, obj) {
@@ -937,15 +1013,21 @@ var Repeater = function (name, node, arr) {
 
   var actions = {
     push: function (data, callback) {
-      var node = _funcs.createNodeFromTemplate(data);
-      _funcs.bindID(node, data);
+      if (Array.isArray(data)) {
+        data.forEach((function (o) {
+          this.push(o, callback);
+        }).bind(this));
+      } else {
+        var node = _funcs.createNodeFromTemplate(data);
+        _funcs.bindID(node, data);
 
-      _funcs.DOM.push(node);
+        _funcs.DOM.push(node);
 
-      meta.data.push(data);
-      meta.elems.push(node);
+        meta.data.push(data);
+        meta.elems.push(node);
 
-      if (callback) callback(node);
+        if (callback) callback(node);
+      }
     },
     unshift: function (data, callback) {
       var node = _funcs.createNodeFromTemplate(data);
@@ -1017,6 +1099,49 @@ var Repeater = function (name, node, arr) {
       meta.data = meta.data.filter(function (o) {
         return o;
       });
+    },
+    get: function (index) {
+      var arr = Object.assign([], meta.data);
+
+      arr.forEach(function (o) {
+        delete o.__meta;
+      });
+
+      return arr;
+    },
+    modify: function (index, callback) {
+      var i = 0, id;
+      if (typeof index == "object") {
+        id = index.dataset.b_id;
+
+        meta.data.forEach(function (o, i) {
+          if (o.__meta.id == id) index = i;
+        });
+
+        if (typeof index == "object") {
+          index = -1;
+          throw "Error. This node couldn't be found in the repeat sequence.";
+        }
+      }
+
+      callback(meta.data[index]);
+
+      var parent = _funcs.createNodeFromNode(meta.data[index], meta.elems[index]);
+
+      // give the new parent the old repeat attribute.
+      parent.repeat = meta.elems[index].repeat;
+      // replace the old meta.elems[index] with the new parent in the DOM.
+      _funcs.DOM.replace(meta.elems[index], parent);
+      // now set the meta.elems[index] to the new parent.
+      meta.elems[index] = parent;
+    },
+
+    modifyEach: function (callback) {
+      var len = meta.elems.length;
+
+      for (var x = 0; x < len; x++) {
+        this.modify(x, callback.bind(null, meta.data[x], x));
+      }
     }
   };
 
@@ -1114,6 +1239,11 @@ funcs.scope = {
       // create $scope level data object for storing state data.
       immutable($scope, "data", {});
 
+      // const variables.
+      immutable($scope, "_", {
+        CLEAR_INPUT: true
+      });
+
       // save all the data in the `$scope` in localStorage.
       immutable($scope.data, "save", funcs.scope.save.bind(this, $scope, meta));
 
@@ -1124,6 +1254,9 @@ funcs.scope = {
       immutable($scope.data, "apply", function (config) {
         return funcs.scope.apply($scope, meta, config);
       });
+
+      // retrieve all saved `$scope` data stored in localStorage.
+      immutable($scope.data, "remove", funcs.scope.remove.bind(this, $scope, meta));
 
       // check if the current scope's data has expired yet.
       immutable($scope.data, "lastUpdated", function () {
@@ -1228,7 +1361,7 @@ funcs.scope.lastUpdated = function ($scope, meta) {
 };
 
 funcs.scope.remove = function ($scope, meta) {
-  var storage = new Storage.namespace(meta.current.view);
+  var storage = new Storage.namespace(meta.view.current);
 
   storage.set("data", {}, new Date().getTime());
 };
@@ -1237,11 +1370,10 @@ funcs.scope.apply = function ($scope, meta) {
   var storage = new Storage.namespace(meta.view.current),
       data = storage.get("data");
 
-  if (typeof data == "object") {
+  if (typeof data == "object" && data) {
     data = data.value;
 
     for (var x in data) {
-      console.log("printing", x, data);
       $scope.data[x] = data[x];
     }
 
@@ -1288,6 +1420,50 @@ funcs.scope.toolkit = function ($scope) {
       return this;
     }
   });
+
+  immutable($scope, "input", {
+    val: function (arr, clear) {
+      if (Array.isArray(arr)) {
+        var obj = {},
+            $elems;
+
+        arr.forEach(function (name) {
+          $elems = $scope.get(name).self;
+
+          if ($elems && $elems.length > 0) {
+            if ($elems.length > 1) {
+              obj[name] = $elems.map(function (o) {
+                return o.value;
+              });
+            } else {
+              obj[name] = $elems[0].value;
+            }
+          }
+        });
+
+        // also clear the values of the inputs.
+        if (clear) this.clear(arr);
+
+        return obj;
+      } else console.warn("Error. `$scope.input.val` must be passed an array parameter of valid b-name nodes.");
+    },
+
+    clear: function (arr) {
+      if (Array.isArray(arr)) {
+        var $elems;
+
+        arr.forEach(function (name) {
+          $elems = $scope.get(name).self;
+
+          if ($elems) {
+            $elems.forEach(function (o) {
+              o.value = "";
+            });
+          }
+        });
+      } else console.warn("Error. `$scope.input.clear` must be passed an array parameter of valid b-name nodes.");
+    }
+  });
 };
 
 funcs.transition = {
@@ -1316,27 +1492,6 @@ funcs.transition = {
     meta.copy.id = "clone_node";
   },
 
-  // a func to make the meta.copy exist in the same place as the current
-  // container does.
-  applyStyling: function () {
-    /*
-    var top = meta.container.offsetTop,
-        left = meta.container.offsetLeft;
-
-    // create a styling object to apply to the copy version.
-    var styling = {
-      position: "absolute",
-      top: meta.container.offsetTop + "px",
-      left: meta.container.offsetLeft + "px",
-      zIndex: "1000"
-    };
-
-    for (var x in styling) {
-      meta.copy.style[x] = styling[x];
-    }
-    */
-  },
-
   // hide the current container.
   // add an inline styling to set display to 'none'.
   hideContainer: function (meta) {
@@ -1352,6 +1507,8 @@ funcs.transition = {
     // insert meta.copy before the next element after meta.container,
     // which means after meta.container.
     parent.insertBefore(meta.copy, meta.container.nextSibling);
+    // scroll to the top of the container before callback.
+    meta.container.scrollTop = 0;
   },
 
   callback: {

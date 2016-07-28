@@ -1,3 +1,36 @@
+if (!Object.assign) {
+  Object.defineProperty(Object, 'assign', {
+    enumerable: false,
+    configurable: true,
+    writable: true,
+    value: function(target) {
+      'use strict';
+      if (target === undefined || target === null) {
+        throw new TypeError('Cannot convert first argument to object');
+      }
+
+      var to = Object(target);
+      for (var i = 1; i < arguments.length; i++) {
+        var nextSource = arguments[i];
+        if (nextSource === undefined || nextSource === null) {
+          continue;
+        }
+        nextSource = Object(nextSource);
+
+        var keysArray = Object.keys(nextSource);
+        for (var nextIndex = 0, len = keysArray.length; nextIndex < len; nextIndex++) {
+          var nextKey = keysArray[nextIndex];
+          var desc = Object.getOwnPropertyDescriptor(nextSource, nextKey);
+          if (desc !== undefined && desc.enumerable) {
+            to[nextKey] = nextSource[nextKey];
+          }
+        }
+      }
+      return to;
+    }
+  });
+}
+
 var Repeater = function (name, node, arr) {
   var meta = {
     original: null,
@@ -17,6 +50,9 @@ var Repeater = function (name, node, arr) {
         parent.index = x;
 
         meta.marker.parentNode.insertBefore(parent, meta.marker);
+
+        meta.elems.push(parent);
+        meta.data.push(arr[x]);
       }
 
       meta.marker.parentNode.removeChild(meta.marker);
@@ -43,7 +79,6 @@ var Repeater = function (name, node, arr) {
       node.parentNode.removeChild(node);
 
       if (arr) {
-
         this.generateFromArray(arr, actions);
         //document.body.removeChild(meta.marker);
       }
@@ -66,7 +101,10 @@ var Repeater = function (name, node, arr) {
       store: function (node) {
         var copy = node.cloneNode(true);
 
-        copy.removeAttribute("b-repeat-in");
+        if (copy.hasAttribute("b-repeat-in")){
+          copy.removeAttribute("b-repeat-in");
+          copy.setAttribute("b-repeated-in", true);
+        }
 
         return copy;
       },
@@ -85,17 +123,18 @@ var Repeater = function (name, node, arr) {
             if (typeof attr !== "undefined" && attr !== null) {
               val = _funcs.parse.dotToObj(obj, attr);
 
-              node.removeAttribute(x);
+              //node.removeAttribute(x);
               node[map[x]] = val;
             }
           }
         }
       },
 
-      isInsideBRepeatIn: function (node) {
+      isInsideBRepeatIn: function (node, parent) {
         while (node.parentNode) {
           node = node.parentNode;
-          if (node.hasAttribute("b-repeat-in")) return true;
+          if (node.isSameNode(parent)) return false;
+          else if (node.hasAttribute("b-repeat-in") || node.hasAttribute("b-repeated-in")) return true;
         }
 
         return false;
@@ -113,10 +152,35 @@ var Repeater = function (name, node, arr) {
           path = nodes[x].getAttribute("b-repeat-in");
           arr = _funcs.parse.dotToObj(obj, path);
 
-          Repeater(null, nodes[x], arr);
+          if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
+            if (!parent.repeat) parent.repeat = {};
+            var name = nodes[x].getAttribute("b-name");
+
+            if (name) parent.repeat[name] = Repeater(null, nodes[x], arr);
+            else parent.repeat[path] = Repeater(null, nodes[x], arr);
+          }
+
+          console.log(parent, parent.repeat);
         }
 
-        if (!this.node.isInsideBRepeatIn(nodes[x])) {
+        if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
+          this.node.set(nodes[x], obj);
+        }
+      }
+
+      parent.removeAttribute("b-repeat");
+
+      return parent;
+    },
+
+    createNodeFromNode: function (obj, node) {
+      var parent = node.cloneNode(true),
+          nodes = parent.querySelectorAll("*");
+
+      var path, arr;
+
+      for (var x = 0; x < nodes.length; x++) {
+        if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
           this.node.set(nodes[x], obj);
         }
       }
@@ -209,6 +273,10 @@ var Repeater = function (name, node, arr) {
 
       removeAt: function (index) {
         this._inner.removeAt(index);
+      },
+
+      replace: function (old_node, new_node) {
+        old_node.parentNode.replaceChild(new_node, old_node);
       }
     },
     bindID: function (node, obj) {
@@ -221,15 +289,21 @@ var Repeater = function (name, node, arr) {
 
   var actions = {
     push: function (data, callback) {
-      var node = _funcs.createNodeFromTemplate(data);
-      _funcs.bindID(node, data);
+      if (Array.isArray(data)) {
+        data.forEach((function (o) {
+          this.push(o, callback);
+        }).bind(this));
+      } else {
+        var node = _funcs.createNodeFromTemplate(data);
+        _funcs.bindID(node, data);
 
-      _funcs.DOM.push(node);
+        _funcs.DOM.push(node);
 
-      meta.data.push(data);
-      meta.elems.push(node);
+        meta.data.push(data);
+        meta.elems.push(node);
 
-      if (callback) callback(node);
+        if (callback) callback(node);
+      }
     },
     unshift: function (data, callback) {
       var node = _funcs.createNodeFromTemplate(data);
@@ -301,6 +375,49 @@ var Repeater = function (name, node, arr) {
       meta.data = meta.data.filter(function (o) {
         return o;
       });
+    },
+    get: function (index) {
+      var arr = Object.assign([], meta.data);
+
+      arr.forEach(function (o) {
+        delete o.__meta;
+      });
+
+      return arr;
+    },
+    modify: function (index, callback) {
+      var i = 0, id;
+      if (typeof index == "object") {
+        id = index.dataset.b_id;
+
+        meta.data.forEach(function (o, i) {
+          if (o.__meta.id == id) index = i;
+        });
+
+        if (typeof index == "object") {
+          index = -1;
+          throw "Error. This node couldn't be found in the repeat sequence.";
+        }
+      }
+
+      callback(meta.data[index]);
+
+      var parent = _funcs.createNodeFromNode(meta.data[index], meta.elems[index]);
+
+      // give the new parent the old repeat attribute.
+      parent.repeat = meta.elems[index].repeat;
+      // replace the old meta.elems[index] with the new parent in the DOM.
+      _funcs.DOM.replace(meta.elems[index], parent);
+      // now set the meta.elems[index] to the new parent.
+      meta.elems[index] = parent;
+    },
+
+    modifyEach: function (callback) {
+      var len = meta.elems.length;
+
+      for (var x = 0; x < len; x++) {
+        this.modify(x, callback.bind(null, meta.data[x], x));
+      }
     }
   };
 

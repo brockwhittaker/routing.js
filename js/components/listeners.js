@@ -5,6 +5,16 @@ var Listeners = function () {
   };
 
   var _funcs = {
+    findInArray: function (arr, callback) {
+      var flag = false;
+
+      arr.forEach(function (o) {
+        flag = flag || callback(o);
+      });
+
+      return flag;
+    },
+
     addListener: function (node, name, type) {
       var self = this;
 
@@ -45,7 +55,15 @@ var Listeners = function () {
     addIndividualEvent: function (bName, event, funcName, func) {
       if (!meta.events[bName][event]) meta.events[bName][event] = [];
 
-      meta.events[bName][event].push([func, funcName]);
+      var ifFuncExists = function (o) {
+        return o[1] == funcName;
+      };
+
+      if (!this.findInArray(meta.events[bName][event], ifFuncExists)) {
+        meta.events[bName][event].push([func, funcName]);
+      } else {
+        console.warn("A function with the name `" + funcName + "` already exists.");
+      }
     },
 
     removeEvent: function (name, type, funcName) {
@@ -70,7 +88,8 @@ var Listeners = function () {
         // start from the newest nodes.
         // once you reach a node that has an EL, all before it should/will have one.
         var node;
-        for (var x = meta.nodes[name].length - 1; x > 0; x--) {
+        // BUG: I put x > 0, not x >= 0. BAD.
+        for (var x = meta.nodes[name].length - 1; x >= 0; x--) {
           // in structure [node, {types}].
           node = meta.nodes[name][x];
 
@@ -142,12 +161,3 @@ var Listeners = function () {
 };
 
 funcs.listeners = Listeners;
-
-
-var arr = [1,2,3,4,5];
-
-for (var x = 0; x < Math.floor(arr.length / 2); x++) {
-  var temp = arr[x];
-  arr[x] = arr[arr.length - x - 1];
-  arr[arr.length - x - 1] = temp;
-}

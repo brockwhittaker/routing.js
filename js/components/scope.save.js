@@ -18,7 +18,7 @@ funcs.scope.lastUpdated = function ($scope, meta) {
 };
 
 funcs.scope.remove = function ($scope, meta) {
-  var storage = new Storage.namespace(meta.current.view);
+  var storage = new Storage.namespace(meta.view.current);
 
   storage.set("data", {}, new Date().getTime());
 };
@@ -27,11 +27,10 @@ funcs.scope.apply = function ($scope, meta) {
   var storage = new Storage.namespace(meta.view.current),
       data = storage.get("data");
 
-  if (typeof data == "object") {
+  if (typeof data == "object" && data) {
     data = data.value;
 
     for (var x in data) {
-      console.log("printing", x, data);
       $scope.data[x] = data[x];
     }
 

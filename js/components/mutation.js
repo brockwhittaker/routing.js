@@ -83,8 +83,6 @@ funcs.mutation = {
   addRepeatToNode: function ($scope, node) {
     var repeatName = node.getAttribute("b-repeat");
 
-    console.log("repeat", node);
-
     funcs.util.immutable($scope.data.repeat, repeatName, funcs.repeater(repeatName, node));
   },
 

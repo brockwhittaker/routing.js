@@ -29,6 +29,11 @@ funcs.scope = {
       // create $scope level data object for storing state data.
       immutable($scope, "data", {});
 
+      // const variables.
+      immutable($scope, "_", {
+        CLEAR_INPUT: true
+      });
+
       // save all the data in the `$scope` in localStorage.
       immutable($scope.data, "save", funcs.scope.save.bind(this, $scope, meta));
 
@@ -39,6 +44,9 @@ funcs.scope = {
       immutable($scope.data, "apply", function (config) {
         return funcs.scope.apply($scope, meta, config);
       });
+
+      // retrieve all saved `$scope` data stored in localStorage.
+      immutable($scope.data, "remove", funcs.scope.remove.bind(this, $scope, meta));
 
       // check if the current scope's data has expired yet.
       immutable($scope.data, "lastUpdated", function () {

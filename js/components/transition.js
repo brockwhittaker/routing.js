@@ -24,27 +24,6 @@ funcs.transition = {
     meta.copy.id = "clone_node";
   },
 
-  // a func to make the meta.copy exist in the same place as the current
-  // container does.
-  applyStyling: function () {
-    /*
-    var top = meta.container.offsetTop,
-        left = meta.container.offsetLeft;
-
-    // create a styling object to apply to the copy version.
-    var styling = {
-      position: "absolute",
-      top: meta.container.offsetTop + "px",
-      left: meta.container.offsetLeft + "px",
-      zIndex: "1000"
-    };
-
-    for (var x in styling) {
-      meta.copy.style[x] = styling[x];
-    }
-    */
-  },
-
   // hide the current container.
   // add an inline styling to set display to 'none'.
   hideContainer: function (meta) {
@@ -60,6 +39,8 @@ funcs.transition = {
     // insert meta.copy before the next element after meta.container,
     // which means after meta.container.
     parent.insertBefore(meta.copy, meta.container.nextSibling);
+    // scroll to the top of the container before callback.
+    meta.container.scrollTop = 0;
   },
 
   callback: {

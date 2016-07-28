@@ -23,27 +23,18 @@ route.controller(function ($scope, $data, view) {
   window.$scope = $scope;
 
   /* -- repeat messages in above object -- */
-  $messages = $scope.repeat("messages");
-  $names = $scope.repeat("names");
+  var $messages = $scope.repeat("messages");
+  var $names = $scope.repeat("names");
 
   /* -- $scope listeners -- */
   $scope.submit = function () {
-    var msg = $scope.input.self[0].value;
-    $messages.push({ username: "brock", message: msg });
+    var data = $scope.input.val(["messageInput"], $scope._.CLEAR_INPUT);
+
+    $messages.push({ username: "brock", message: data.messageInput });
   };
 
-  $scope.deleteMe = function () {
-    //$messages.remove(this);
-  };
-
-
-  messages.forEach(function (o) {
-    $messages.push(o);
-  });
-
-  names.forEach(function (o) {
-    $names.push(o);
-  });
+  $messages.push(messages);
+  $names.push(names);
 
   $scope.event.add("messages", {
     click: {
