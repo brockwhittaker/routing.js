@@ -1,9 +1,9 @@
 var messages = [
-  { username: "brock", message: "Hey, what's up?", style: { color: "red", fontWeight: 300 } },
-  { username: "anon", message: "Not much, you?" },
-  { username: "brock", message: "Just walking home from work." },
-  { username: "anon", message: "Where are you from?" },
-  { username: "brock", message: "San Francisco." }
+  { link: "https://wwww.google.com", username: "brock", message: "Hey, what's up?", bool: true, style: { color: "red", fontWeight: 300, webkitFilter: "blur(1px)" } },
+  { link: "https://wwww.google.com", username: "anon", message: "Not much, you?", bool: false, },
+  { link: "https://wwww.google.com", username: "brock", message: "Just walking home from work.", bool: true, },
+  { username: "anon", message: "Where are you from?", bool: true, },
+  { username: "brock", message: "San Francisco.", bool: true, }
 ];
 
 var names = [
@@ -32,24 +32,41 @@ route.controller(function ($scope, $data, view) {
     $messages.push({ username: "brock", message: data.messageInput });
   };
 
-  $messages.push(messages, {
+  $messages.modifyView({
     username: function (name) {
       return "username: " + name;
     },
     message: function (msg) {
       return "This message is hidden.";
+    },
+    bool: function (flag) {
+      if (flag) return "<div class='green bool'></div>";
+      else return "<div class='red bool'></div>";
     }
   });
+  $messages.push(messages);
   $names.push(names);
+
+  $scope.event.add("messageInput", {
+    keydown: {
+      enter: function (e) {
+        if (e.keyCode == 13) $scope.submit();
+      }
+    }
+  });
+
+  function onHold (node) {
+    node.contentEditable = true;
+
+  }
 
   $scope.event.add("messages", {
     click: {
-      deleteMe: function () {
-        $messages.remove(this);
-      }
-    },
-    mouseenter: function () {
+      something: function (e) {
+        var val = parseFloat(this.innerText);
 
+        console.log(val);
+      }
     }
   });
 

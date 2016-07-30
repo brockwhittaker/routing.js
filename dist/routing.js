@@ -23,7 +23,8 @@ var Listeners = function () {
       node.addEventListener(type, function (e) {
         // run through each of the events and call them with thisArg and e.
         self.applyAllEvents(name, type, (function (func) {
-          func[0].call(this, e);
+          if (func[2])
+            func[0].call(this, e);
         }).bind(this));
       });
     },
@@ -62,7 +63,8 @@ var Listeners = function () {
       };
 
       if (!this.findInArray(meta.events[bName][event], ifFuncExists)) {
-        meta.events[bName][event].push([func, funcName]);
+        // function[Function], name[String], enabled[Bool]
+        meta.events[bName][event].push([func, funcName, true]);
       } else {
         console.warn("A function with the name `" + funcName + "` already exists.");
       }
@@ -73,6 +75,30 @@ var Listeners = function () {
         meta.events[name][type] = meta.events[name][type].filter(function (o) {
           return o[1] !== funcName;
         });
+      }
+    },
+
+    disableEvent: function (name, type, funcName) {
+      if (meta.events[name] && meta.events[name][type]) {
+        var events = meta.events[name][type];
+        for (var x = 0; x < events.length; x++) {
+          if (events[x][1] == funcName) {
+            events[x][2] = false;
+            return;
+          }
+        }
+      }
+    },
+
+    enableEvent: function (name, type, funcName) {
+      if (meta.events[name] && meta.events[name][type]) {
+        var events = meta.events[name][type];
+        for (var x = 0; x < events.length; x++) {
+          if (events[x][1] == funcName) {
+            events[x][2] = true;
+            return;
+          }
+        }
       }
     },
 
@@ -139,6 +165,14 @@ var Listeners = function () {
 
     remove: function (name, type, funcName) {
       _funcs.removeEvent(name, type, funcName);
+    },
+
+    enable: function (name, type, funcName) {
+      _funcs.enableEvent(name, type, funcName);
+    },
+
+    disable: function (name, type, funcName) {
+      _funcs.disableEvent(name, type, funcName);
     },
 
     _addNode: function (name, node) {
@@ -732,6 +766,30 @@ var Repeater = function (name, node, arr) {
   };
 
   var _funcs = {
+    // this is the args for push, unshift, and modify. We want to normalize these.
+    normalizeArgs: function (index, data, viewModifier, callback) {
+      var obj = {
+        index: index,
+        data: data,
+        viewModifier: viewModifier,
+        callback: callback
+      };
+
+      // this means they actually only gave a callback.
+      if (typeof viewModifier == "function") {
+        obj.callback = viewModifier;
+        delete obj.viewModifier;
+      }
+
+      return obj;
+    },
+
+    // remove all `__meta` attributes before returning the data to a user.
+    sanitizeData: function (obj) {
+      delete obj.__meta;
+      return obj;
+    },
+
     clone: function (obj) {
       // http://stackoverflow.com/questions/728360/how-do-i-correctly-clone-a-javascript-object.
       // answer provided by `A. Levy` -- retrieved on 7/28/16.
@@ -768,6 +826,8 @@ var Repeater = function (name, node, arr) {
         throw new Error("Unable to copy obj! Its type isn't supported.");
     },
 
+    // loop through all valid properties of an object and provide a callback
+    // in value, key order.
     objectLoop: function (obj, callback) {
       for (var x in obj) {
         if (obj.hasOwnProperty(x)) {
@@ -776,11 +836,15 @@ var Repeater = function (name, node, arr) {
       }
     },
 
+    // generate a quick elem ID with Math.random() -- doesn't have to be crypto
+    // secure generated.
     generateID: function () {
       return (Math.random() * 1E16).toString(32);
     },
 
-    generateFromArray: function (arr, actions) {
+    // take in an array and push the elems to the element list and the data to
+    // the data list, while creating an HTML template based off the data.
+    generateFromArray: function (arr) {
       for (var x = 0; x < arr.length; x++) {
         var parent = this.createNodeFromTemplate(arr[x]);
         parent.index = x;
@@ -794,6 +858,8 @@ var Repeater = function (name, node, arr) {
       meta.marker.parentNode.removeChild(meta.marker);
     },
 
+    // this is the auto-run function that creates the marker and removes the
+    // original template node to store in the closure.
     init: function (name, node, arr, actions) {
       // create a new repeater reference in the window scope.
       if (!window._Repeater) window._Repeater = {};
@@ -820,6 +886,8 @@ var Repeater = function (name, node, arr) {
       }
     },
 
+    // create a marker in the DOM so that we know where the b-repeat should
+    // start at.
     createMarker: function (id) {
       var div = document.createElement("div");
 
@@ -872,6 +940,13 @@ var Repeater = function (name, node, arr) {
                 }
                 break;
 
+              case "b-prop":
+                val = _funcs.parse.dotToObj(obj, attr);
+                cb = _funcs.parse.dotToObj(viewModifier || {}, attr);
+
+                node[o] = cb ? cb(val) : val;
+                break;
+
               // look for the value inside the object by prop, as well as a
               // formatter function for the HTML. Try to give a formatted answer
               // before a raw data answer.
@@ -879,7 +954,8 @@ var Repeater = function (name, node, arr) {
                 val = _funcs.parse.dotToObj(obj, attr);
                 cb = _funcs.parse.dotToObj(viewModifier || {}, attr);
 
-                node[o] = cb ? cb(val) : val;
+
+                node.setAttribute(o, cb ? cb(val) : val);
             }
           }
         });
@@ -916,8 +992,6 @@ var Repeater = function (name, node, arr) {
             if (name) parent.repeat[name] = Repeater(null, nodes[x], arr);
             else parent.repeat[path] = Repeater(null, nodes[x], arr);
           }
-
-          console.log(parent, parent.repeat);
         }
 
         if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
@@ -1048,14 +1122,14 @@ var Repeater = function (name, node, arr) {
     // the data is the raw data to be stored, but the viewModifier is an object
     // of callbacks in the same structure as data that specifies how some props
     // should be rendered before being displayed.
-    push: function (data, viewModifier, callback) {
+    push: function (data, callback) {
       if (Array.isArray(data)) {
         data.forEach((function (o, i) {
-          this.push(o, viewModifier, callback);
+          this.push(o, callback);
         }).bind(this));
       } else {
         // create a node with data and a view modifying template.
-        var node = _funcs.createNodeFromTemplate(data, viewModifier || meta.viewModifier);
+        var node = _funcs.createNodeFromTemplate(data, meta.viewModifier);
         // bind a randomly generated ID to the node.
         _funcs.bindID(node, data);
 
@@ -1069,13 +1143,13 @@ var Repeater = function (name, node, arr) {
     },
     // instead of pushing to the end of the sequence, add to the beginning of
     // the sequence right after the marker.
-    unshift: function (data, viewModifier, callback) {
+    unshift: function (data, callback) {
       if (Array.isArray(data)) {
         data.forEach(function (o, i) {
-          this.unshift(o, viewModifier, callback);
+          this.unshift(o, callback);
         });
       } else {
-        var node = _funcs.createNodeFromTemplate(data, viewModifier || meta.viewModifier);
+        var node = _funcs.createNodeFromTemplate(data, meta.viewModifier);
 
         _funcs.bindID(node, data);
 
@@ -1089,8 +1163,8 @@ var Repeater = function (name, node, arr) {
     },
 
     // index has been moved to the first position instead of being the second (??).
-    at: function (index, data, viewModifier, callback) {
-      var node = _funcs.createNodeFromTemplate(data, viewModifier || meta.viewModifier);
+    at: function (index, data, callback) {
+      var node = _funcs.createNodeFromTemplate(data, meta.viewModifier);
       _funcs.bindID(node, data);
 
       _funcs.DOM.at(node, index);
@@ -1151,8 +1225,8 @@ var Repeater = function (name, node, arr) {
         return o;
       });
     },
-    get: function (index) {
-      var arr = _funcs.clone(meta.data);
+    get: function () {
+      var arr = _funcs.sanitizeData(meta.data);
 
       arr.forEach(function (o) {
         delete o.__meta;
@@ -1163,14 +1237,11 @@ var Repeater = function (name, node, arr) {
     modify: function (index, viewModifier, callback) {
       var i = 0, id;
 
-      // this means they actually only gave a callback.
-      if (typeof viewModifier == "function") {
-        callback = viewModifier;
-        viewModifier = null;
-      }
+      var args = _funcs.normalizeArgs(index, null, viewModifier, callback);
 
-      if (typeof index == "object") {
-        id = index.dataset.b_id;
+
+      if (typeof args.index == "object") {
+        id = args.index.dataset.b_id;
 
         meta.data.forEach(function (o, i) {
           if (o.__meta.id == id) index = i;
@@ -1180,14 +1251,16 @@ var Repeater = function (name, node, arr) {
           index = -1;
           throw "Error. This node couldn't be found in the repeat sequence.";
         }
-      }
+      } else index = args.index;
 
-      callback(meta.data[index]);
+      var __meta = meta.data[index].__meta;
+      args.callback.call(null, _funcs.sanitizeData(meta.data[index]));
+      meta.data[index].__meta = __meta;
 
       var parent = _funcs.createNodeFromNode(
         meta.data[index],
         meta.elems[index],
-        viewModifier || meta.viewModifier
+        args.viewModifier || meta.viewModifier
       );
 
       // give the new parent the old repeat attribute.
@@ -1199,16 +1272,17 @@ var Repeater = function (name, node, arr) {
     },
 
     modifyEach: function (viewModifier, callback) {
-      var len = meta.elems.length;
+      var args = _funcs.normalizeArgs(null, null, viewModifier, callback);
 
-      // this means they actually only gave a callback.
-      if (typeof viewModifier == "function") {
-        callback = viewModifier;
-        viewModifier = null;
-      }
-
-      for (var x = 0; x < len; x++) {
-        this.modify(x, viewModifier, callback.bind(null, meta.data[x], x));
+      var __meta;
+      for (var x = 0; x < meta.elems.length; x++) {
+        __meta = meta.data[x].__meta;
+        this.modify(
+          x,
+          args.viewModifier,
+          args.callback.bind(null, meta.data[x], x)
+        );
+        meta.data[x].__meta = __meta;
       }
     },
 

@@ -21,7 +21,8 @@ var Listeners = function () {
       node.addEventListener(type, function (e) {
         // run through each of the events and call them with thisArg and e.
         self.applyAllEvents(name, type, (function (func) {
-          func[0].call(this, e);
+          if (func[2])
+            func[0].call(this, e);
         }).bind(this));
       });
     },
@@ -60,7 +61,8 @@ var Listeners = function () {
       };
 
       if (!this.findInArray(meta.events[bName][event], ifFuncExists)) {
-        meta.events[bName][event].push([func, funcName]);
+        // function[Function], name[String], enabled[Bool]
+        meta.events[bName][event].push([func, funcName, true]);
       } else {
         console.warn("A function with the name `" + funcName + "` already exists.");
       }
@@ -71,6 +73,30 @@ var Listeners = function () {
         meta.events[name][type] = meta.events[name][type].filter(function (o) {
           return o[1] !== funcName;
         });
+      }
+    },
+
+    disableEvent: function (name, type, funcName) {
+      if (meta.events[name] && meta.events[name][type]) {
+        var events = meta.events[name][type];
+        for (var x = 0; x < events.length; x++) {
+          if (events[x][1] == funcName) {
+            events[x][2] = false;
+            return;
+          }
+        }
+      }
+    },
+
+    enableEvent: function (name, type, funcName) {
+      if (meta.events[name] && meta.events[name][type]) {
+        var events = meta.events[name][type];
+        for (var x = 0; x < events.length; x++) {
+          if (events[x][1] == funcName) {
+            events[x][2] = true;
+            return;
+          }
+        }
       }
     },
 
@@ -137,6 +163,14 @@ var Listeners = function () {
 
     remove: function (name, type, funcName) {
       _funcs.removeEvent(name, type, funcName);
+    },
+
+    enable: function (name, type, funcName) {
+      _funcs.enableEvent(name, type, funcName);
+    },
+
+    disable: function (name, type, funcName) {
+      _funcs.disableEvent(name, type, funcName);
     },
 
     _addNode: function (name, node) {
