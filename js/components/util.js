@@ -1,5 +1,4 @@
-funcs.util = {
-
+module.set("util", {
   // creating an immutable property of an object.
   immutable: function (obj, key, value) {
     var config = {
@@ -60,4 +59,4 @@ funcs.util = {
 
     return false;
   }
-};
+});

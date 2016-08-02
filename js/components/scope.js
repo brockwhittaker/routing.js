@@ -1,7 +1,7 @@
-funcs.scope = {
+module.set("scope", {
   create: {
     key: function ($scope, key) {
-      var immutable = funcs.util.immutable;
+      var immutable = module.get("util").immutable;
 
       if (!$scope[key]) {
         $scope[key] = {};
@@ -19,10 +19,12 @@ funcs.scope = {
 
     // create a new scope property.
     scope: function (meta, $scope, routes) {
-      var immutable = funcs.util.immutable,
-          self = this;
+      var immutable = module.get("util").immutable,
+          self = this,
+          scope = module.get("scope"),
+          listeners = module.get("listeners");
 
-      funcs.scope.repeat($scope);
+      scope.repeat($scope);
 
       // make `event` in $scope immutable as well as `add` inside of
       // $scope.event. Also add `data` inside $scope for random user data.
@@ -35,29 +37,29 @@ funcs.scope = {
       });
 
       // save all the data in the `$scope` in localStorage.
-      immutable($scope.data, "save", funcs.scope.save.bind(this, $scope, meta));
+      immutable($scope.data, "save", scope.save.bind(this, $scope, meta));
 
       // retrieve all saved `$scope` data stored in localStorage.
-      immutable($scope.data, "retrieve", funcs.scope.retrieve.bind(this, $scope, meta));
+      immutable($scope.data, "retrieve", scope.retrieve.bind(this, $scope, meta));
 
       // apply all saved `$scope` data stored in localStorage to the `$scope.data`.
       immutable($scope.data, "apply", function (config) {
-        return funcs.scope.apply($scope, meta, config);
+        return scope.apply($scope, meta, config);
       });
 
       // retrieve all saved `$scope` data stored in localStorage.
-      immutable($scope.data, "remove", funcs.scope.remove.bind(this, $scope, meta));
+      immutable($scope.data, "remove", scope.remove.bind(this, $scope, meta));
 
       // check if the current scope's data has expired yet.
       immutable($scope.data, "lastUpdated", function () {
-        return funcs.scope.lastUpdated($scope, meta);
+        return scope.lastUpdated($scope, meta);
       });
 
       // safe retrieval of a property that creates it if it doesn't exist.
       immutable($scope, "get", function (property) {
         if ($scope[property]) return $scope[property];
 
-        funcs.scope.create.key($scope, property);
+        scope.create.key($scope, property);
 
         console.warn("Error. This property with name '" + property + "' doesn't exist yet.");
 
@@ -65,35 +67,12 @@ funcs.scope = {
       });
 
       // create event object for adding event functions.
-      immutable($scope, "event", funcs.listeners());
-
-      /*
-      // create the $scope.event.add function to add custom events.
-      immutable($scope.event, "add",
-        (function (property, event, callback) {
-          // if the property doesn't exist, create a new wrapper object.
-          if (!this[property]) this[property] = {};
-
-          // if the event is an object, it's an iterable with multiple events.
-          if (typeof event == "object") {
-            // so run through it and take the key as the event and the value
-            // as the callback.
-            for (var x in event) {
-              this[property][x] = event[x];
-            }
-          } else {
-            // otherwise just set the event [key] to the callback [value].
-            this[property][event] = callback;
-          }
-          // make thisArg the current state.
-        }).bind($scope)
-      );
-      */
+      immutable($scope, "event", listeners());
 
       // creation of a native data object that is bound to the $scope.
       immutable($scope.data, "prop", function (property, key, value) {
         if (!$scope[property]) {
-          funcs.scope.create.key($scope, property);
+          scope.create.key($scope, property);
           console.warn("The property with name '" + property + "' doesn't exist yet, but was just created.");
         }
 
@@ -114,14 +93,27 @@ funcs.scope = {
 
       immutable($scope.data, "repeat", {});
 
-      funcs.scope.toolkit($scope);
+      scope.toolkit($scope);
     }
   },
 
+  repeat: function ($scope) {
+    var util = module.get("util"),
+        immutable = util.immutable;
+
+    immutable($scope, "repeat", function (name) {
+      if ($scope.data.repeat[name]) {
+        return $scope.data.repeat[name];
+      } else console.warn("Error. Repeat associated with key '" + name + "' does not exist yet.");
+    });
+  },
+
   removeAllNodeRefs: function ($scope) {
+    var util = module.get("util");
+
     for (var x in $scope) {
       if ($scope[x].self) {
-        funcs.util.tempUnlock($scope[x], "self", function (obj) {
+        util.tempUnlock($scope[x], "self", function (obj) {
           obj.self = [];
         });
       }
@@ -129,4 +121,4 @@ funcs.scope = {
 
     return $scope;
   }
-};
+});

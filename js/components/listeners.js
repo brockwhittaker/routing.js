@@ -194,4 +194,4 @@ var Listeners = function () {
   };
 };
 
-funcs.listeners = Listeners;
+module.set("listeners", Listeners);

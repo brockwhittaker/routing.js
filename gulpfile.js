@@ -3,6 +3,7 @@ var concat = require("gulp-concat");
 var uglify = require("gulp-uglify");
 
 var files = [
+  "js/components/module.js",
   "js/components/.init.js",
   "js/components/listeners.js",
   "js/components/ajax.js",

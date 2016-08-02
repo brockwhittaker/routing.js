@@ -1,5 +1,5 @@
 // a class to monitor mutations (changes) to the meta.container.
-funcs.mutation = {
+module.set("mutation", {
 
   // this initializes the observer class and then pins it to the meta.container.
   // inside the callback, it looks through each of the mutations and checks
@@ -45,8 +45,9 @@ funcs.mutation = {
 
     // these require a name because these events are bound to a namespace.
     if (name) {
+      var scope = module.get("scope");
       // if the scope object for this doesn't exist, create it.
-      funcs.scope.create.key($scope, name);
+      scope.create.key($scope, name);
 
       if (document.body.contains(node) && $scope[name].self.indexOf(node) == -1) {
         $scope[name].self.push(node);
@@ -81,20 +82,23 @@ funcs.mutation = {
   },
 
   addRepeatToNode: function ($scope, node) {
+    var util = module.get("util"),
+        repeater = module.get("repeater");
     var repeatName = node.getAttribute("b-repeat");
 
-    funcs.util.immutable($scope.data.repeat, repeatName, funcs.repeater(repeatName, node));
+    util.immutable($scope.data.repeat, repeatName, repeater(repeatName, node));
   },
 
   // remove nodes that
   removeNode: function ($scope, node) {
     if (node.nodeType === 1 && node.hasAttribute("b-name")) {
+      var util = module.get("util");
       var name = node.getAttribute("b-name"),
           $elem = $scope.current[name] || $scope.old[name];
 
       // unlock $scope[key].self so that I can run Array.prototype.filter on
       // it.
-      funcs.util.mutable($elem, "self");
+      util.mutable($elem, "self");
 
       // filter out any nodes that are the same as the ones that are being
       // removed from the DOM currently.
@@ -105,7 +109,7 @@ funcs.mutation = {
       $scope.current.event._removeNode(name, node);
 
       // make immutable again so that users cannot delete $scope[key].self.
-      funcs.util.immutable($elem, "self");
+      util.immutable($elem, "self");
     }
   },
 
@@ -117,7 +121,8 @@ funcs.mutation = {
     // run the self.addEventsToNode and self.addRepeatToNode functions on
     // the parent and all children nodes that are valid (o.nodeType == 1).
     var addEventsToAllNodes = function ($scope, parent) {
-      var allNodes = funcs.DOM.parentAndChildren(parent);
+      var DOM = module.get("DOM");
+      var allNodes = DOM.parentAndChildren(parent);
 
       allNodes.forEach(function (o, i) {
         if (o.nodeType === 1) {
@@ -162,4 +167,4 @@ funcs.mutation = {
       }
     });
   }
-};
+});

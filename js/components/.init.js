@@ -1,1 +1,1 @@
-var funcs = {};
+var module = ModuleBuilder();

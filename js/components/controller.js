@@ -1,4 +1,4 @@
-funcs.controller = {
+module.set("controller", {
   // this gives the scope to users along with access to the container node.
   scope: function (callback, meta) {
     var route = meta.routes[meta.view.current],
@@ -15,4 +15,4 @@ funcs.controller = {
       });
     });
   }
-};
+});

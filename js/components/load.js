@@ -1,10 +1,12 @@
 // load functions that utilize AJAX or XHR requests to either fetch html
 // or javascript.
-funcs.load = {
+module.set("load", {
   // fetch HTML from a desired component page and trigger a callback with
   // the results.
   html: function (url, callback, cache) {
-    funcs.ajax(url, {
+    var ajax = module.get("ajax");
+
+    ajax(url, {
       success: function (response) {
         callback(response);
       },
@@ -89,4 +91,4 @@ funcs.load = {
     }
 
   }
-};
+});

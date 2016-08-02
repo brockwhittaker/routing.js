@@ -1,0 +1,19 @@
+<div class="todo-box">
+  <ul>
+    <li b-repeat="list">
+      <div b-prop="checkbox"></div>
+      <div class="title" b-prop="title"></div>
+      <div class="urgency" b-prop="urgency"></div>
+    </li>
+  </ul>
+  <div class="input-container">
+    <input type="text" b-name="todoInput" value="" placeholder="New Todo">
+    <select b-name="urgency" class="urgency-selector" name="">
+      <option value="1" disabled selected>Priority</option>
+      <option value="1">Low</option>
+      <option value="2">Medium</option>
+      <option value="3">High</option>
+    </select>
+    <button type="button" b-name="newTodo" b-click="newTodo">+</button>
+  </div>
+</div>

@@ -1,4 +1,4 @@
-funcs.hash = {
+module.set("hash", {
   public: {
     // this decompiles the hash into two components: the view and the pseudo-get
     // parameters. This information is then returned as an object.
@@ -49,8 +49,9 @@ funcs.hash = {
       // a setter function to set the new view name of a contaienr without
       // disrupting the pseudo-get paramters.
       view: function (value) {
-        var hash = funcs.hash.public.get(),
-            get = funcs.hash.private.concatGet(hash.get);
+        var hashModule = module.get("hash");
+        var hash = hashModule.public.get(),
+            get = hashModule.private.concatGet(hash.get);
 
         if (!hash) {
           window.location.hash = "/" + value;
@@ -64,8 +65,9 @@ funcs.hash = {
       // this accepts an object of key-values and converts it to 'x=1&y=2'
       // format.
       get: function (obj) {
-        var hash = funcs.hash.public.get(),
-            get = funcs.hash.private.concatGet(obj);
+        var hashModule = module.get("hash");
+        var hash = hashModule.public.get(),
+            get = hashModule.private.concatGet(obj);
 
         if (!hash) throw "Error. No view currently set.";
         else {
@@ -93,4 +95,4 @@ funcs.hash = {
       }).join("&");
     }
   }
-};
+});

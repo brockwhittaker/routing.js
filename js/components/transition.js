@@ -1,4 +1,4 @@
-funcs.transition = {
+module.set("transition", {
   /*
     TRANSITION STEPS:
     - Start transition to copy elem.
@@ -93,4 +93,4 @@ funcs.transition = {
       callback();
     }).bind(this), 50);
   }
-};
+});

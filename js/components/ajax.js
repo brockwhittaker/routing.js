@@ -1,6 +1,6 @@
 // url should be a valid string path.
 // cbs should be a valid object of callbacks [success] and [error].
-funcs.ajax = function (url, cbs, cache) {
+module.set("ajax", function (url, cbs, cache) {
   // create a new http request instance.
   var http = new XMLHttpRequest();
 
@@ -28,4 +28,4 @@ funcs.ajax = function (url, cbs, cache) {
   // send a GET request.
   http.open("GET", url, true);
   http.send();
-};
+});

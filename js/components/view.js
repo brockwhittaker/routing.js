@@ -1,6 +1,10 @@
-funcs.view = {
+module.set("view", {
 
   new: function (name, meta) {
+    var hash = module.get("hash"),
+        transition = module.get("transition"),
+        routes = module.get("routes");
+
     var utils = {
       replaceNamespace: function (node, name) {
         // remove the old namespace.
@@ -24,13 +28,13 @@ funcs.view = {
       meta.animation.inProgress = true;
 
       // set the location.hash view name.
-      funcs.hash.public.set.view(name);
+      hash.public.set.view(name);
       // run pre-transition procedural (create copy, hide original).
-      funcs.transition.before(meta, function () {
+      transition.before(meta, function () {
         utils.replaceNamespace(meta.container, name);
 
         // deploy the new route and provide a callback when it's done.
-        funcs.routes.deploy(meta, name, function () {
+        routes.deploy(meta, name, function () {
           // this is confusing, but essentially it runs the custom user transition.
           // the user then triggers the `done` parameter which internally triggers
           // funcs.transition.callback.after, which switches views again basically.
@@ -38,14 +42,14 @@ funcs.view = {
             console.log("Transition started at " + new Date().getTime());
             // use Function.prototype.call to run the function and set params.
             // set `this` as 'null' to disallow access to internal functions.
-            meta.transition.call(null, funcs.transition.callback.after.bind(null, meta), {
+            meta.transition.call(null, transition.callback.after.bind(null, meta), {
               old: meta.copy,
               new: meta.container
             }, {
               new: meta.view.current,
               old: meta.view.old
             });
-          } else funcs.transition.callback.after(meta);
+          } else transition.callback.after(meta);
         });
       });
     // the location.hash variable being set should not trigger this function,
@@ -62,8 +66,8 @@ funcs.view = {
 
       meta.container = utils.replaceNamespace(meta.container, name);
 
-      funcs.routes.deploy(meta, name, function () {
-        funcs.transition.callback.after(meta);
+      routes.deploy(meta, name, function () {
+        transition.callback.after(meta);
       });
     } else if (!meta.routes[name]) {
       console.warn("Error. The route '" + name + "' does not exist.");
@@ -72,4 +76,4 @@ funcs.view = {
       // view as is currently displayed.
     }
   }
-};
+});

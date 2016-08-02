@@ -238,6 +238,7 @@ var Repeater = function (name, node, arr) {
 
         if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
           this.node.set(nodes[x], obj, viewModifier);
+          nodes[x].bParent = parent;
         }
       }
 
@@ -255,6 +256,7 @@ var Repeater = function (name, node, arr) {
       for (var x = 0; x < nodes.length; x++) {
         if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
           this.node.set(nodes[x], obj, meta.viewModifier);
+          nodes[x].bParent = parent;
         }
       }
 
@@ -468,7 +470,7 @@ var Repeater = function (name, node, arr) {
       });
     },
     get: function () {
-      var arr = _funcs.sanitizeData(meta.data);
+      var arr = _funcs.sanitizeData(_funcs.clone(meta.data));
 
       arr.forEach(function (o) {
         delete o.__meta;
@@ -543,4 +545,4 @@ var Repeater = function (name, node, arr) {
   return actions;
 };
 
-funcs.repeater = Repeater;
+module.set("repeater", Repeater);

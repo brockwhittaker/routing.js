@@ -44,6 +44,7 @@ route.controller(function ($scope, $data, view) {
       else return "<div class='red bool'></div>";
     }
   });
+  
   $messages.push(messages);
   $names.push(names);
 
@@ -55,17 +56,10 @@ route.controller(function ($scope, $data, view) {
     }
   });
 
-  function onHold (node) {
-    node.contentEditable = true;
-
-  }
-
   $scope.event.add("messages", {
     click: {
-      something: function (e) {
-        var val = parseFloat(this.innerText);
-
-        console.log(val);
+      removeMe: function () {
+        $messages.remove(this);
       }
     }
   });

@@ -27,4 +27,4 @@ var Storage = {
   }
 };
 
-funcs.storage = Storage;
+module.set("storage", Storage);

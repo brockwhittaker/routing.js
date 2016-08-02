@@ -1,4 +1,103 @@
-var funcs = {};
+var ModuleBuilder = function () {
+  // storing the modules here.
+  var modules = {};
+
+  // publicly accessible functions.
+  return {
+    // create a new module by name.
+    // returns an `IndModule` closure to modify particular parts.
+    new: function (name) {
+      if (!modules[name]) {
+        modules[name] = {};
+        return new IndModule(modules[name]);
+      } else console.warn("Error. Module with name `" + name + "` already exists.");
+    },
+    // find a module and return an IndModule instance by name.
+    find: function (name) {
+      if (modules[name]) {
+        return new IndModule(modules[name]);
+      } else console.warn("Error. Module with name `" + name + "` does not exist.");
+    },
+    // delete a module by name.
+    delete: function (name) {
+      if (modules[name]) {
+        delete modules[name][key];
+      } else console.warn("Error. Tried deleting module `" + name + "` but does not exist.");
+    },
+    // get the contents of a module by name.
+    get: function (name) {
+      if (modules[name]) {
+        return modules[name];
+      } else {
+        console.warn("Error. Module with name `" + name + "` does not exist.");
+        return {};
+      }
+    },
+    set: function (name, value) {
+      if (!modules[name]) {
+        modules[name] = value;
+      } else {
+        console.warn("Error. Module with name `" + name + "` already exists.");
+      }
+
+      return this;
+    }
+  };
+};
+
+// modify particular parts of an individual module.
+var IndModule = function (module) {
+  return {
+    // create a new sub-module.
+    new: function (name) {
+      if (!module[name]) {
+        module[name] = {};
+        return new IndModule(module[name]);
+      } else console.warn("Error. Module with name `" + name + "` already exists.");
+    },
+    // find a sub-module.
+    find: function (name) {
+      if (module[name]) {
+        return new IndModule(module[name]);
+      } else console.warn("Error. Module with name `" + name + "` does not exist.");
+    },
+    // set a key inside an individual module.
+    setKey: function (key, value) {
+      if (module) {
+        module[key] = value;
+      } else console.warn("Error. Module does not exist.");
+
+      return this;
+    },
+    setKeys: function (obj) {
+      if (module) {
+        for (var x in obj) {
+          if (obj.hasOwnProperty(x)) {
+            module[x] = obj[x];
+          }
+        }
+      }
+
+      return this;
+    },
+    // get the contents of a particular key.
+    getKey: function (key) {
+      if (module[key]) {
+        return module[key];
+      } else return {};
+      console.warn("Error. Module with key `" + key +"` does not exist.");
+    },
+    // delete a key inside a module.
+    deleteKey: function (key) {
+      if (module) {
+        delete module[key];
+      } else console.warn("Error. Tried deleting key `" + key + "` but does not exist.");
+    }
+  };
+};
+
+var module = ModuleBuilder();
+module.new("funcs");
 
 var Listeners = function () {
   var meta = {
@@ -196,11 +295,11 @@ var Listeners = function () {
   };
 };
 
-funcs.listeners = Listeners;
+module.set("listeners", Listeners);
 
 // url should be a valid string path.
 // cbs should be a valid object of callbacks [success] and [error].
-funcs.ajax = function (url, cbs, cache) {
+module.set("ajax", function (url, cbs, cache) {
   // create a new http request instance.
   var http = new XMLHttpRequest();
 
@@ -228,7 +327,7 @@ funcs.ajax = function (url, cbs, cache) {
   // send a GET request.
   http.open("GET", url, true);
   http.send();
-};
+});
 
 var Storage = {
   namespace: function (namespace) {
@@ -259,12 +358,12 @@ var Storage = {
   }
 };
 
-funcs.storage = Storage;
+module.set("storage", Storage);
 
 // this runs through a settings object and applies the settings individually
 // to the config object inside of the meta object.
 // this function is bound to meta.config, so `this` is the operative var.
-funcs.config = function (settings, meta) {
+module.set("config", function (settings, meta) {
   for (var x in settings) {
     // make sure the property already exists. Don't set new properties.
     if (settings.hasOwnProperty(x) && typeof meta.config[x] !== "undefined") {
@@ -276,9 +375,9 @@ funcs.config = function (settings, meta) {
   }
 
   return this.proto;
-};
+});
 
-funcs.controller = {
+module.set("controller", {
   // this gives the scope to users along with access to the container node.
   scope: function (callback, meta) {
     var route = meta.routes[meta.view.current],
@@ -295,9 +394,9 @@ funcs.controller = {
       });
     });
   }
-};
+});
 
-funcs.DOM = {
+module.set("DOM", {
   // simple append operation of a valid node to a parent node.
   // the opposite of prepend.
   append: function (node, parent) {
@@ -323,7 +422,8 @@ funcs.DOM = {
   // then convert dot notation like self.Id to obj["self"]["Id"]
   // set the value of obj["self"]["Id"] in the document innerHTML.
   fillWithObjectProperties: function (parent, object) {
-    var nodes = parent.querySelectorAll("[b-prop]");
+    var nodes = parent.querySelectorAll("[b-prop]"),
+        util = module.get("util");
 
     var map = {
       "b-prop": "innerHTML",
@@ -336,7 +436,7 @@ funcs.DOM = {
       if (map.hasOwnProperty(x)) {
         attr = node.getAttribute(x);
         if (typeof attr !== "undefined" && attr !== null) {
-          val = funcs.util.dotToObject(object, path);
+          val = util.dotToObject(object, path);
           node.removeAttribute(x);
           node[map[x]] = val;
         }
@@ -379,9 +479,9 @@ funcs.DOM = {
 
     return false;
   }
-};
+});
 
-funcs.hash = {
+module.set("hash", {
   public: {
     // this decompiles the hash into two components: the view and the pseudo-get
     // parameters. This information is then returned as an object.
@@ -432,8 +532,9 @@ funcs.hash = {
       // a setter function to set the new view name of a contaienr without
       // disrupting the pseudo-get paramters.
       view: function (value) {
-        var hash = funcs.hash.public.get(),
-            get = funcs.hash.private.concatGet(hash.get);
+        var hashModule = module.get("hash");
+        var hash = hashModule.public.get(),
+            get = hashModule.private.concatGet(hash.get);
 
         if (!hash) {
           window.location.hash = "/" + value;
@@ -447,8 +548,9 @@ funcs.hash = {
       // this accepts an object of key-values and converts it to 'x=1&y=2'
       // format.
       get: function (obj) {
-        var hash = funcs.hash.public.get(),
-            get = funcs.hash.private.concatGet(obj);
+        var hashModule = module.get("hash");
+        var hash = hashModule.public.get(),
+            get = hashModule.private.concatGet(obj);
 
         if (!hash) throw "Error. No view currently set.";
         else {
@@ -476,11 +578,11 @@ funcs.hash = {
       }).join("&");
     }
   }
-};
+});
 
 // any processes that need to be done on initialization of the RouteConfig
 // function.
-funcs.init = function (meta, container) {
+module.set("init", function (meta, container) {
   // on hash change, run the route.deploy function through the funcs.view.new
   // wrapper function.
   window.onhashchange = (function () {
@@ -494,16 +596,18 @@ funcs.init = function (meta, container) {
     container;
 
   // initialize the DOM mutation watcher.
-  this.mutation.addEvents(meta);
-};
+  module.get("mutation").addEvents(meta);
+});
 
 // load functions that utilize AJAX or XHR requests to either fetch html
 // or javascript.
-funcs.load = {
+module.set("load", {
   // fetch HTML from a desired component page and trigger a callback with
   // the results.
   html: function (url, callback, cache) {
-    funcs.ajax(url, {
+    var ajax = module.get("ajax");
+
+    ajax(url, {
       success: function (response) {
         callback(response);
       },
@@ -588,10 +692,10 @@ funcs.load = {
     }
 
   }
-};
+});
 
 // a class to monitor mutations (changes) to the meta.container.
-funcs.mutation = {
+module.set("mutation", {
 
   // this initializes the observer class and then pins it to the meta.container.
   // inside the callback, it looks through each of the mutations and checks
@@ -637,8 +741,9 @@ funcs.mutation = {
 
     // these require a name because these events are bound to a namespace.
     if (name) {
+      var scope = module.get("scope");
       // if the scope object for this doesn't exist, create it.
-      funcs.scope.create.key($scope, name);
+      scope.create.key($scope, name);
 
       if (document.body.contains(node) && $scope[name].self.indexOf(node) == -1) {
         $scope[name].self.push(node);
@@ -673,20 +778,23 @@ funcs.mutation = {
   },
 
   addRepeatToNode: function ($scope, node) {
+    var util = module.get("util"),
+        repeater = module.get("repeater");
     var repeatName = node.getAttribute("b-repeat");
 
-    funcs.util.immutable($scope.data.repeat, repeatName, funcs.repeater(repeatName, node));
+    util.immutable($scope.data.repeat, repeatName, repeater(repeatName, node));
   },
 
   // remove nodes that
   removeNode: function ($scope, node) {
     if (node.nodeType === 1 && node.hasAttribute("b-name")) {
+      var util = module.get("util");
       var name = node.getAttribute("b-name"),
           $elem = $scope.current[name] || $scope.old[name];
 
       // unlock $scope[key].self so that I can run Array.prototype.filter on
       // it.
-      funcs.util.mutable($elem, "self");
+      util.mutable($elem, "self");
 
       // filter out any nodes that are the same as the ones that are being
       // removed from the DOM currently.
@@ -697,7 +805,7 @@ funcs.mutation = {
       $scope.current.event._removeNode(name, node);
 
       // make immutable again so that users cannot delete $scope[key].self.
-      funcs.util.immutable($elem, "self");
+      util.immutable($elem, "self");
     }
   },
 
@@ -709,7 +817,8 @@ funcs.mutation = {
     // run the self.addEventsToNode and self.addRepeatToNode functions on
     // the parent and all children nodes that are valid (o.nodeType == 1).
     var addEventsToAllNodes = function ($scope, parent) {
-      var allNodes = funcs.DOM.parentAndChildren(parent);
+      var DOM = module.get("DOM");
+      var allNodes = DOM.parentAndChildren(parent);
 
       allNodes.forEach(function (o, i) {
         if (o.nodeType === 1) {
@@ -754,7 +863,7 @@ funcs.mutation = {
       }
     });
   }
-};
+});
 
 var Repeater = function (name, node, arr) {
   var meta = {
@@ -996,6 +1105,7 @@ var Repeater = function (name, node, arr) {
 
         if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
           this.node.set(nodes[x], obj, viewModifier);
+          nodes[x].bParent = parent;
         }
       }
 
@@ -1013,6 +1123,7 @@ var Repeater = function (name, node, arr) {
       for (var x = 0; x < nodes.length; x++) {
         if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
           this.node.set(nodes[x], obj, meta.viewModifier);
+          nodes[x].bParent = parent;
         }
       }
 
@@ -1226,7 +1337,7 @@ var Repeater = function (name, node, arr) {
       });
     },
     get: function () {
-      var arr = _funcs.sanitizeData(meta.data);
+      var arr = _funcs.sanitizeData(_funcs.clone(meta.data));
 
       arr.forEach(function (o) {
         delete o.__meta;
@@ -1301,13 +1412,15 @@ var Repeater = function (name, node, arr) {
   return actions;
 };
 
-funcs.repeater = Repeater;
+module.set("repeater", Repeater);
 
-funcs.routes = {
+module.set("routes", {
   // add a new route to the meta.routes list.
   // this adds a new pair of HTML and JS to load.
   // `this` is bound to `meta`.
   add: function (name, html, js, meta) {
+    var scope = module.get("scope");
+
     // if the route doesn't already exist, create a new one.
     if (!meta.routes[name]) {
       meta.routes[name] = {
@@ -1327,7 +1440,7 @@ funcs.routes = {
       };
 
       var $scope = meta.routes[name].state;
-      funcs.scope.create.scope(meta, $scope, meta.routes);
+      scope.create.scope(meta, $scope, meta.routes);
 
     // otherwise throw an error that the route already exists.
     } else throw "Error. Route with the name '" + name + "' already exists.";
@@ -1335,7 +1448,11 @@ funcs.routes = {
 
   // if the route exists, load the assets and then run a callback when loaded.
   deploy: function (meta, name, callback) {
-    var route = meta.routes[name];
+    var route = meta.routes[name],
+        scope = module.get("scope"),
+        hash = module.get("hash"),
+        load = module.get("load");
+
 
     if (route.hasLoaded === false) route.hasLoaded = 0;
     else if (route.hasLoaded === 0) route.hasLoaded = true;
@@ -1343,11 +1460,11 @@ funcs.routes = {
     route.loads++;
 
     if (route) {
-      funcs.hash.public.set.view(name);
+      hash.public.set.view(name);
 
-      funcs.scope.removeAllNodeRefs(meta.routes[name].state);
+      scope.removeAllNodeRefs(meta.routes[name].state);
 
-      funcs.load.page(meta, route, function (response) {
+      load.page(meta, route, function (response) {
         console.log("loaded route '" + name + "'!");
         // run the callback to say, "I'm done loading!".
         if (callback) callback();
@@ -1357,12 +1474,12 @@ funcs.routes = {
 
     return this;
   }
-};
+});
 
-funcs.scope = {
+module.set("scope", {
   create: {
     key: function ($scope, key) {
-      var immutable = funcs.util.immutable;
+      var immutable = module.get("util").immutable;
 
       if (!$scope[key]) {
         $scope[key] = {};
@@ -1380,10 +1497,12 @@ funcs.scope = {
 
     // create a new scope property.
     scope: function (meta, $scope, routes) {
-      var immutable = funcs.util.immutable,
-          self = this;
+      var immutable = module.get("util").immutable,
+          self = this,
+          scope = module.get("scope"),
+          listeners = module.get("listeners");
 
-      funcs.scope.repeat($scope);
+      scope.repeat($scope);
 
       // make `event` in $scope immutable as well as `add` inside of
       // $scope.event. Also add `data` inside $scope for random user data.
@@ -1396,29 +1515,29 @@ funcs.scope = {
       });
 
       // save all the data in the `$scope` in localStorage.
-      immutable($scope.data, "save", funcs.scope.save.bind(this, $scope, meta));
+      immutable($scope.data, "save", scope.save.bind(this, $scope, meta));
 
       // retrieve all saved `$scope` data stored in localStorage.
-      immutable($scope.data, "retrieve", funcs.scope.retrieve.bind(this, $scope, meta));
+      immutable($scope.data, "retrieve", scope.retrieve.bind(this, $scope, meta));
 
       // apply all saved `$scope` data stored in localStorage to the `$scope.data`.
       immutable($scope.data, "apply", function (config) {
-        return funcs.scope.apply($scope, meta, config);
+        return scope.apply($scope, meta, config);
       });
 
       // retrieve all saved `$scope` data stored in localStorage.
-      immutable($scope.data, "remove", funcs.scope.remove.bind(this, $scope, meta));
+      immutable($scope.data, "remove", scope.remove.bind(this, $scope, meta));
 
       // check if the current scope's data has expired yet.
       immutable($scope.data, "lastUpdated", function () {
-        return funcs.scope.lastUpdated($scope, meta);
+        return scope.lastUpdated($scope, meta);
       });
 
       // safe retrieval of a property that creates it if it doesn't exist.
       immutable($scope, "get", function (property) {
         if ($scope[property]) return $scope[property];
 
-        funcs.scope.create.key($scope, property);
+        scope.create.key($scope, property);
 
         console.warn("Error. This property with name '" + property + "' doesn't exist yet.");
 
@@ -1426,35 +1545,12 @@ funcs.scope = {
       });
 
       // create event object for adding event functions.
-      immutable($scope, "event", funcs.listeners());
-
-      /*
-      // create the $scope.event.add function to add custom events.
-      immutable($scope.event, "add",
-        (function (property, event, callback) {
-          // if the property doesn't exist, create a new wrapper object.
-          if (!this[property]) this[property] = {};
-
-          // if the event is an object, it's an iterable with multiple events.
-          if (typeof event == "object") {
-            // so run through it and take the key as the event and the value
-            // as the callback.
-            for (var x in event) {
-              this[property][x] = event[x];
-            }
-          } else {
-            // otherwise just set the event [key] to the callback [value].
-            this[property][event] = callback;
-          }
-          // make thisArg the current state.
-        }).bind($scope)
-      );
-      */
+      immutable($scope, "event", listeners());
 
       // creation of a native data object that is bound to the $scope.
       immutable($scope.data, "prop", function (property, key, value) {
         if (!$scope[property]) {
-          funcs.scope.create.key($scope, property);
+          scope.create.key($scope, property);
           console.warn("The property with name '" + property + "' doesn't exist yet, but was just created.");
         }
 
@@ -1475,14 +1571,27 @@ funcs.scope = {
 
       immutable($scope.data, "repeat", {});
 
-      funcs.scope.toolkit($scope);
+      scope.toolkit($scope);
     }
   },
 
+  repeat: function ($scope) {
+    var util = module.get("util"),
+        immutable = util.immutable;
+
+    immutable($scope, "repeat", function (name) {
+      if ($scope.data.repeat[name]) {
+        return $scope.data.repeat[name];
+      } else console.warn("Error. Repeat associated with key '" + name + "' does not exist yet.");
+    });
+  },
+
   removeAllNodeRefs: function ($scope) {
+    var util = module.get("util");
+
     for (var x in $scope) {
       if ($scope[x].self) {
-        funcs.util.tempUnlock($scope[x], "self", function (obj) {
+        util.tempUnlock($scope[x], "self", function (obj) {
           obj.self = [];
         });
       }
@@ -1490,59 +1599,48 @@ funcs.scope = {
 
     return $scope;
   }
-};
+});
 
-funcs.scope.save = function ($scope, meta, config) {
-  var storage = new Storage.namespace(meta.view.current);
+module.find("scope").setKeys({
+  save: function ($scope, meta, config) {
+    var storage = new Storage.namespace(meta.view.current);
 
-  storage.set("data", $scope.data, new Date().getTime());
-};
+    storage.set("data", $scope.data, new Date().getTime());
+  },
+  retrieve: function ($scope, meta) {
+    var storage = new Storage.namespace(meta.view.current),
+        data = storage.get("data");
 
-funcs.scope.retrieve = function ($scope, meta) {
-  var storage = new Storage.namespace(meta.view.current),
-      data = storage.get("data");
+    return data;
+  },
+  lastUpdated: function ($scope, meta) {
+    var storage = new Storage.namespace(meta.view.current);
 
-  return data;
-};
+    return storage.lastUpdated("data");
+  },
+  remove: function ($scope, meta) {
+    var storage = new Storage.namespace(meta.view.current);
 
-funcs.scope.lastUpdated = function ($scope, meta) {
-  var storage = new Storage.namespace(meta.view.current);
+    storage.set("data", {}, new Date().getTime());
+  },
+  apply: function ($scope, meta) {
+    var storage = new Storage.namespace(meta.view.current),
+        data = storage.get("data");
 
-  return storage.lastUpdated("data");
-};
+    if (typeof data == "object" && data) {
+      data = data.value;
 
-funcs.scope.remove = function ($scope, meta) {
-  var storage = new Storage.namespace(meta.view.current);
+      for (var x in data) {
+        $scope.data[x] = data[x];
+      }
 
-  storage.set("data", {}, new Date().getTime());
-};
+      return Object.keys(data).length > 0;
+    } return false;
+  }
+});
 
-funcs.scope.apply = function ($scope, meta) {
-  var storage = new Storage.namespace(meta.view.current),
-      data = storage.get("data");
 
-  if (typeof data == "object" && data) {
-    data = data.value;
-
-    for (var x in data) {
-      $scope.data[x] = data[x];
-    }
-
-    return Object.keys(data).length > 0;
-  } return false;
-};
-
-funcs.scope.repeat = function ($scope) {
-  var immutable = funcs.util.immutable;
-
-  immutable($scope, "repeat", function (name) {
-    if ($scope.data.repeat[name]) {
-      return $scope.data.repeat[name];
-    } else console.warn("Error. Repeat associated with key '" + name + "' does not exist yet.");
-  });
-};
-
-funcs.scope.toolkit = function ($scope) {
+module.find("scope").setKey("toolkit", function ($scope) {
   var utils = {
     setVals: function ($scope, prop, obj) {
       if (typeof obj == "object") {
@@ -1558,7 +1656,7 @@ funcs.scope.toolkit = function ($scope) {
     }
   };
 
-  var immutable = funcs.util.immutable;
+  var immutable = module.get("util").immutable;
 
   immutable($scope, "edit", {
     text: function (obj) {
@@ -1615,9 +1713,9 @@ funcs.scope.toolkit = function ($scope) {
       } else console.warn("Error. `$scope.input.clear` must be passed an array parameter of valid b-name nodes.");
     }
   });
-};
+});
 
-funcs.transition = {
+module.set("transition", {
   /*
     TRANSITION STEPS:
     - Start transition to copy elem.
@@ -1712,10 +1810,9 @@ funcs.transition = {
       callback();
     }).bind(this), 50);
   }
-};
+});
 
-funcs.util = {
-
+module.set("util", {
   // creating an immutable property of an object.
   immutable: function (obj, key, value) {
     var config = {
@@ -1776,11 +1873,15 @@ funcs.util = {
 
     return false;
   }
-};
+});
 
-funcs.view = {
+module.set("view", {
 
   new: function (name, meta) {
+    var hash = module.get("hash"),
+        transition = module.get("transition"),
+        routes = module.get("routes");
+
     var utils = {
       replaceNamespace: function (node, name) {
         // remove the old namespace.
@@ -1804,13 +1905,13 @@ funcs.view = {
       meta.animation.inProgress = true;
 
       // set the location.hash view name.
-      funcs.hash.public.set.view(name);
+      hash.public.set.view(name);
       // run pre-transition procedural (create copy, hide original).
-      funcs.transition.before(meta, function () {
+      transition.before(meta, function () {
         utils.replaceNamespace(meta.container, name);
 
         // deploy the new route and provide a callback when it's done.
-        funcs.routes.deploy(meta, name, function () {
+        routes.deploy(meta, name, function () {
           // this is confusing, but essentially it runs the custom user transition.
           // the user then triggers the `done` parameter which internally triggers
           // funcs.transition.callback.after, which switches views again basically.
@@ -1818,14 +1919,14 @@ funcs.view = {
             console.log("Transition started at " + new Date().getTime());
             // use Function.prototype.call to run the function and set params.
             // set `this` as 'null' to disallow access to internal functions.
-            meta.transition.call(null, funcs.transition.callback.after.bind(null, meta), {
+            meta.transition.call(null, transition.callback.after.bind(null, meta), {
               old: meta.copy,
               new: meta.container
             }, {
               new: meta.view.current,
               old: meta.view.old
             });
-          } else funcs.transition.callback.after(meta);
+          } else transition.callback.after(meta);
         });
       });
     // the location.hash variable being set should not trigger this function,
@@ -1842,8 +1943,8 @@ funcs.view = {
 
       meta.container = utils.replaceNamespace(meta.container, name);
 
-      funcs.routes.deploy(meta, name, function () {
-        funcs.transition.callback.after(meta);
+      routes.deploy(meta, name, function () {
+        transition.callback.after(meta);
       });
     } else if (!meta.routes[name]) {
       console.warn("Error. The route '" + name + "' does not exist.");
@@ -1852,7 +1953,7 @@ funcs.view = {
       // view as is currently displayed.
     }
   }
-};
+});
 
 var RouteConfig = (function (container) {
   "use strict";
@@ -1883,33 +1984,33 @@ var RouteConfig = (function (container) {
     _prototype: _prototype
   };
 
-  funcs.init(meta, container);
+  module.get("init")(meta, container);
 
   var _prototype = {
     // run the funcs.routes.add func with params [[ name, html, js ]].
     add: function (name, html, js) {
-      funcs.routes.add(name, html, js, meta);
+      module.get("routes").add(name, html, js, meta);
 
       return this;
     },
     // run the funcs.routes.deploy func with [[ name ]] param.
     deploy: function (name) {
-      funcs.view.new(name, meta);
+      module.get("view").new(name, meta);
       return this;
     },
     // set configuration options in [[ settings ]] param.
     config: function (settings) {
-      funcs.config(settings, meta);
+      module.get("config")(settings, meta);
     },
     // browser location.hash getters/setters and pseudo-get params.
-    hash: funcs.hash.public,
+    hash: module.get("hash").public,
     // set the transition.
     transition: function (callback) {
-      funcs.transition.callback.set(callback, meta);
+      module.get("transition").callback.set(callback, meta);
     },
     // add controller functionality to allow access to scope variables.
     controller: function (callback) {
-      funcs.controller.scope(callback, meta);
+      module.get("controller").scope(callback, meta);
     }
   };
 

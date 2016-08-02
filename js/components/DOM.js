@@ -1,4 +1,4 @@
-funcs.DOM = {
+module.set("DOM", {
   // simple append operation of a valid node to a parent node.
   // the opposite of prepend.
   append: function (node, parent) {
@@ -24,7 +24,8 @@ funcs.DOM = {
   // then convert dot notation like self.Id to obj["self"]["Id"]
   // set the value of obj["self"]["Id"] in the document innerHTML.
   fillWithObjectProperties: function (parent, object) {
-    var nodes = parent.querySelectorAll("[b-prop]");
+    var nodes = parent.querySelectorAll("[b-prop]"),
+        util = module.get("util");
 
     var map = {
       "b-prop": "innerHTML",
@@ -37,7 +38,7 @@ funcs.DOM = {
       if (map.hasOwnProperty(x)) {
         attr = node.getAttribute(x);
         if (typeof attr !== "undefined" && attr !== null) {
-          val = funcs.util.dotToObject(object, path);
+          val = util.dotToObject(object, path);
           node.removeAttribute(x);
           node[map[x]] = val;
         }
@@ -80,4 +81,4 @@ funcs.DOM = {
 
     return false;
   }
-};
+});

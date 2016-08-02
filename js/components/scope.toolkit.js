@@ -1,4 +1,4 @@
-funcs.scope.toolkit = function ($scope) {
+module.find("scope").setKey("toolkit", function ($scope) {
   var utils = {
     setVals: function ($scope, prop, obj) {
       if (typeof obj == "object") {
@@ -14,7 +14,7 @@ funcs.scope.toolkit = function ($scope) {
     }
   };
 
-  var immutable = funcs.util.immutable;
+  var immutable = module.get("util").immutable;
 
   immutable($scope, "edit", {
     text: function (obj) {
@@ -71,4 +71,4 @@ funcs.scope.toolkit = function ($scope) {
       } else console.warn("Error. `$scope.input.clear` must be passed an array parameter of valid b-name nodes.");
     }
   });
-};
+});
