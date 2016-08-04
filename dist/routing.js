@@ -85,7 +85,7 @@ var IndModule = function (module) {
       if (module[key]) {
         return module[key];
       } else return {};
-      console.warn("Error. Module with key `" + key +"` does not exist.");
+      console.warn("Error. Module with key `" + key + "` does not exist.");
     },
     // delete a key inside a module.
     deleteKey: function (key) {
@@ -96,8 +96,12 @@ var IndModule = function (module) {
   };
 };
 
+
+// fix the sidebars -- they still aren't fixed.
+// some shifts are showing up when they shouldn't.
+// have only user role shown.
+
 var module = ModuleBuilder();
-module.new("funcs");
 
 var Listeners = function () {
   var meta = {
@@ -347,6 +351,10 @@ var Storage = {
         } else return null;
       },
 
+      remove: function (key) {
+        localStorage.removeItem(namespace + "_" + key);
+      },
+
       lastUpdated: function (key) {
         var data = this.get(key);
 
@@ -586,8 +594,8 @@ module.set("init", function (meta, container) {
   // on hash change, run the route.deploy function through the funcs.view.new
   // wrapper function.
   window.onhashchange = (function () {
-    var hash = this.hash.public.get();
-    this.view.new(hash.view, meta);
+    var hash = module.get("hash").public.get();
+    module.get("view").new(hash.view, meta);
   }).bind(this);
 
   // query select the first element in the container selection.
@@ -737,8 +745,6 @@ module.set("mutation", {
     var events = node.getAttribute("b-events"),
         name = node.getAttribute("b-name");
 
-
-
     // these require a name because these events are bound to a namespace.
     if (name) {
       var scope = module.get("scope");
@@ -769,10 +775,23 @@ module.set("mutation", {
       var cb_name = node.getAttribute("b-" + event);
 
       if (cb_name) {
-        node.addEventListener(event, function (e) {
+        // I have no idea why, but somehow nodes pass through here twice and get
+        // events applied to them twice.
+        if (!node.eventsApplied) {
+          node.eventsApplied = true;
+
+          node.addEventListener(event, function (e) {
+            if (typeof $scope[cb_name] == "function")
+              $scope[cb_name].call(this, e);
+          });
+        }
+
+        /*
+        node["on" + event] = function (e) {
           if (typeof $scope[cb_name] == "function")
             $scope[cb_name].call(this, e);
-        });
+        };
+        */
       }
     });
   },
@@ -828,6 +847,18 @@ module.set("mutation", {
             $scope.current.event._addNode(o.getAttribute("b-name"), o);
           }
 
+          // put in a new template -- wait if not loaded, otherwise replace
+          // instantly.
+          if (o.hasAttribute("b-template")) {
+            if (!meta.template.isComplete()) {
+              meta.template.onComplete(function () {
+                o.parentNode.replaceChild(meta.template.new(o), o);
+              });
+            } else {
+              o.parentNode.replaceChild(meta.template.new(o), o);
+            }
+          }
+
           if (o.hasAttribute("b-repeat")) {
             self.addRepeatToNode($scope.current, o);
           }
@@ -865,7 +896,7 @@ module.set("mutation", {
   }
 });
 
-var Repeater = function (name, node, arr) {
+var Repeater = function (name, node, arr, repeatParent) {
   var meta = {
     original: null,
     marker: null,
@@ -890,12 +921,6 @@ var Repeater = function (name, node, arr) {
         delete obj.viewModifier;
       }
 
-      return obj;
-    },
-
-    // remove all `__meta` attributes before returning the data to a user.
-    sanitizeData: function (obj) {
-      delete obj.__meta;
       return obj;
     },
 
@@ -935,6 +960,25 @@ var Repeater = function (name, node, arr) {
         throw new Error("Unable to copy obj! Its type isn't supported.");
     },
 
+    // recursively merge obj1 (and overwrite) in obj1.
+    merge: function (obj1, obj2) {
+      for (var p in obj2) {
+        try {
+          // Property in destination object set; update its value.
+          if (obj2[p].constructor == Object) {
+            obj1[p] = MergeRecursive(obj1[p], obj2[p]);
+          } else {
+            obj1[p] = obj2[p];
+          }
+        } catch(e) {
+          // Property in destination object not set; create it and set its value.
+          obj1[p] = obj2[p];
+        }
+      }
+
+      return obj1;
+    },
+
     // loop through all valid properties of an object and provide a callback
     // in value, key order.
     objectLoop: function (obj, callback) {
@@ -958,13 +1002,21 @@ var Repeater = function (name, node, arr) {
         var parent = this.createNodeFromTemplate(arr[x]);
         parent.index = x;
 
+        parent.repeat = actions;
+
         meta.marker.parentNode.insertBefore(parent, meta.marker);
 
+        // bind an ID to both the node and array.
+        _funcs.bindID(parent, arr[x]);
+
+        parent.bParent = repeatParent;
         meta.elems.push(parent);
         meta.data.push(arr[x]);
       }
 
-      meta.marker.parentNode.removeChild(meta.marker);
+      // we don't want to remove the marker unless there are already nodes.
+      if (arr.length > 0)
+        meta.marker.parentNode.removeChild(meta.marker);
     },
 
     // this is the auto-run function that creates the marker and removes the
@@ -979,7 +1031,10 @@ var Repeater = function (name, node, arr) {
       }
 
       var id = this.generateID();
-      meta.marker = this.createMarker(this.generateID());
+      meta.marker = this.createMarker(
+        this.generateID(),
+        node.parentNode.tagName.toLowerCase()
+      );
 
       // clone the original and store it.
       meta.original = this.node.store(node);
@@ -997,8 +1052,15 @@ var Repeater = function (name, node, arr) {
 
     // create a marker in the DOM so that we know where the b-repeat should
     // start at.
-    createMarker: function (id) {
-      var div = document.createElement("div");
+    createMarker: function (id, tagName) {
+      var nodeType = {
+        "tbody": "tr",
+        "thead": "tr",
+        "table": "tr",
+        "tr": "td"
+      };
+
+      var div = document.createElement(nodeType[tagName] || "div");
 
       div.className = "_marker";
       div.style.visibility = "hidden";
@@ -1022,7 +1084,7 @@ var Repeater = function (name, node, arr) {
         return copy;
       },
 
-      set: function (node, obj, viewModifier) {
+      set: function (node, obj, viewModifier, parent) {
         var map = {
           "b-prop": "innerHTML",
           "b-src": "src",
@@ -1053,7 +1115,7 @@ var Repeater = function (name, node, arr) {
                 val = _funcs.parse.dotToObj(obj, attr);
                 cb = _funcs.parse.dotToObj(viewModifier || {}, attr);
 
-                node[o] = cb ? cb(val) : val;
+                node[o] = cb ? cb(val) : (val || "");
                 break;
 
               // look for the value inside the object by prop, as well as a
@@ -1097,14 +1159,15 @@ var Repeater = function (name, node, arr) {
           if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
             if (!parent.repeat) parent.repeat = {};
             var name = nodes[x].getAttribute("b-name");
+            nodes[x].bParent = parent;
 
-            if (name) parent.repeat[name] = Repeater(null, nodes[x], arr);
-            else parent.repeat[path] = Repeater(null, nodes[x], arr);
+            if (name) parent.repeat[name] = Repeater(null, nodes[x], arr, parent);
+            else parent.repeat[path] = Repeater(null, nodes[x], arr, parent);
           }
         }
 
         if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
-          this.node.set(nodes[x], obj, viewModifier);
+          this.node.set(nodes[x], obj, viewModifier, parent);
           nodes[x].bParent = parent;
         }
       }
@@ -1122,12 +1185,14 @@ var Repeater = function (name, node, arr) {
 
       for (var x = 0; x < nodes.length; x++) {
         if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
-          this.node.set(nodes[x], obj, meta.viewModifier);
+          this.node.set(nodes[x], obj, meta.viewModifier, parent);
           nodes[x].bParent = parent;
         }
       }
 
       parent.removeAttribute("b-repeat");
+
+      parent.cloned = true;
 
       return parent;
     },
@@ -1151,6 +1216,13 @@ var Repeater = function (name, node, arr) {
     },
 
     DOM: {
+      transferProps: function (old_node, new_node) {
+        // give the new parent the old repeat attribute.
+        // replace the old meta.elems[index] with the new parent in the DOM.
+        ["repeat", "dataset", "bParent"].forEach(function (o) {
+          new_node[o] = old_node[o];
+        });
+      },
       _inner: {
         after: function (newNode, refNode) {
           if (!refNode) {
@@ -1224,7 +1296,15 @@ var Repeater = function (name, node, arr) {
     bindID: function (node, obj) {
       var id = this.generateID();
 
-      obj.__meta = { id: id };
+      // make the `__meta` property none enumerable or writable.
+      // set the value to the { id }.
+      Object.defineProperty(obj, "__meta", {
+        writable: false,
+        configurable: true,
+        enumerable: false,
+        value: { id: id }
+      });
+
       node.dataset.b_id = id;
     }
   };
@@ -1337,22 +1417,13 @@ var Repeater = function (name, node, arr) {
       });
     },
     get: function () {
-      var arr = _funcs.sanitizeData(_funcs.clone(meta.data));
-
-      arr.forEach(function (o) {
-        delete o.__meta;
-      });
-
-      return arr;
+      return meta.data;
     },
-    modify: function (index, viewModifier, callback) {
+    modify: function (index, obj) {
       var i = 0, id;
 
-      var args = _funcs.normalizeArgs(index, null, viewModifier, callback);
-
-
-      if (typeof args.index == "object") {
-        id = args.index.dataset.b_id;
+      if (typeof index == "object") {
+        id = index.dataset.b_id;
 
         meta.data.forEach(function (o, i) {
           if (o.__meta.id == id) index = i;
@@ -1362,38 +1433,28 @@ var Repeater = function (name, node, arr) {
           index = -1;
           throw "Error. This node couldn't be found in the repeat sequence.";
         }
-      } else index = args.index;
+      }
 
-      var __meta = meta.data[index].__meta;
-      args.callback.call(null, _funcs.sanitizeData(meta.data[index]));
-      meta.data[index].__meta = __meta;
+      _funcs.merge(meta.data[index], obj);
 
       var parent = _funcs.createNodeFromNode(
         meta.data[index],
         meta.elems[index],
-        args.viewModifier || meta.viewModifier
+        meta.viewModifier
       );
 
-      // give the new parent the old repeat attribute.
-      parent.repeat = meta.elems[index].repeat;
-      // replace the old meta.elems[index] with the new parent in the DOM.
+      _funcs.DOM.transferProps(meta.elems[index], parent);
+
       _funcs.DOM.replace(meta.elems[index], parent);
       // now set the meta.elems[index] to the new parent.
       meta.elems[index] = parent;
     },
 
-    modifyEach: function (viewModifier, callback) {
-      var args = _funcs.normalizeArgs(null, null, viewModifier, callback);
-
-      var __meta;
+    modifyEach: function (func) {
       for (var x = 0; x < meta.elems.length; x++) {
-        __meta = meta.data[x].__meta;
-        this.modify(
-          x,
-          args.viewModifier,
-          args.callback.bind(null, meta.data[x], x)
-        );
-        meta.data[x].__meta = __meta;
+        func(meta.data[x], x);
+
+        this.modify(x, meta.data[x]);
       }
     },
 
@@ -1513,6 +1574,9 @@ module.set("scope", {
       immutable($scope, "_", {
         CLEAR_INPUT: true
       });
+
+      // make `$data.repeat` immutable and undeletable.
+      immutable($scope.data, "repeat", {});
 
       // save all the data in the `$scope` in localStorage.
       immutable($scope.data, "save", scope.save.bind(this, $scope, meta));
@@ -1640,6 +1704,209 @@ module.find("scope").setKeys({
 });
 
 
+// pass in the ajax and repeater functions to the thisArg.
+var TemplateBuilder = function (path) {
+  var ajax = module.get("ajax"),
+      repeater = module.get("repeater"),
+      util = module.get("util");
+
+  var meta = {
+    templateString: [],
+    templates: {},
+    isComplete: false,
+    onComplete: []
+  };
+
+  var funcs = {
+    retrieveDocument: function (path) {
+      if (path) {
+        ajax(path, {
+          success: (function (response) {
+            meta.templateString = response;
+
+            var templates = this.getAllTemplates(response);
+
+            for (var x in templates) {
+              if (templates[x])
+                meta.templates[x] = templates[x];
+              else console.warn("Error. The template `" + x + "` already exists.");
+            }
+
+            meta.isComplete = true;
+            meta.onComplete.forEach(function (f) {
+              f();
+            });
+          }).bind(this),
+          error: function (response) {
+            console.warn("Error. The template from path `" + path + "` is unreachable.");
+          }
+        }, true);
+      }
+    },
+
+    getAllTemplates: function (string) {
+      var div = document.createElement("div");
+      div.innerHTML = string;
+
+      var templates = {};
+      var children = Array.prototype.slice.call(div.childNodes).filter(function (node) {
+        return node.nodeType === node.ELEMENT_NODE;
+      }).forEach(function (node) {
+        var name = node.getAttribute("b-template");
+        if (!templates[name] && name) {
+          templates[name] = node;
+        }
+      });
+
+      return templates;
+    },
+
+    init: function (path) {
+      this.retrieveDocument(path);
+    },
+
+    set: function (node, obj, parent) {
+      var map = {
+        "b-prop": "innerHTML",
+        "b-src": "src",
+        "b-href": "href",
+        "b-style": null
+      };
+
+      var attr, val, cb;
+
+      util.objectLoop(map, function (o, i) {
+        attr = node.getAttribute(i);
+
+        if (typeof attr !== "undefined" && attr !== null) {
+          switch (i) {
+            // if the attribute `b-style` is present, look for an object of
+            // props to set and if they exist, apply them to `node.style`.
+            case "b-style":
+              val = funcs.dotToObj(obj, attr);
+
+              if (val && typeof val == "object") {
+                util.objectLoop(val, function (value, key) {
+                  node.style[key] = value;
+                });
+              }
+              break;
+
+            case "b-prop":
+              val = funcs.dotToObj(obj, attr);
+              node[o] = cb ? cb(val) : (val || "");
+              break;
+
+            // look for the value inside the object by prop, as well as a
+            // formatter function for the HTML. Try to give a formatted answer
+            // before a raw data answer.
+            default:
+              val = funcs.dotToObj(obj, attr);
+              node.setAttribute(o, cb ? cb(val) : val);
+          }
+        }
+      });
+    },
+
+    dotToObj: function (obj, path) {
+      if (typeof path == "string") {
+        path = path.split(/\./);
+
+        for (var x = 0; x < path.length; x++) {
+          // go deeper as long as you can to find the specified object.
+          if (typeof obj[path[x]] !== "undefined" && obj[path[x]] !== null) {
+            obj = obj[path[x]];
+          // if it cannot complete the whole path, just return early `undefined`.
+          } else return;
+        }
+
+        return obj;
+      } else throw "Error. Path must be a string.";
+    },
+
+    isInsideBRepeatIn: function (node, parent) {
+      while (node.parentNode) {
+        node = node.parentNode;
+
+        if (node.isSameNode(parent)) {
+          return false;
+        } else if (node.hasAttribute && (node.hasAttribute("b-repeat-in") || node.hasAttribute("b-repeated-in"))) {
+          return true;
+        }
+      }
+
+      return false;
+    },
+
+    createNodeFromTemplate: function (name, obj) {
+
+      if (meta.templates[name]) {
+        var parent = meta.templates[name].cloneNode(true);
+
+        var nodes = Array.prototype.slice.call(parent.querySelectorAll("*")).concat(parent),
+            path, arr;
+
+        for (var x = 0; x < nodes.length; x++) {
+          if (nodes[x].hasAttribute("b-repeat-in")) {
+            path = nodes[x].getAttribute("b-repeat-in");
+            arr = this.dotToObj(obj, path);
+
+            if (!this.isInsideBRepeatIn(nodes[x], parent)) {
+              if (!parent.repeat) parent.repeat = {};
+              var bName = nodes[x].getAttribute("b-name");
+              nodes[x].bParent = parent;
+
+              if (bName) parent.repeat[bName] = Repeater(null, nodes[x], arr || [], parent);
+              else parent.repeat[path] = Repeater(null, nodes[x], arr || [], parent);
+            }
+          }
+
+          if (!this.isInsideBRepeatIn(nodes[x], parent)) {
+            this.set(nodes[x], obj, {}, parent);
+            nodes[x].bParent = parent;
+          }
+        }
+        parent.removeAttribute("b-template");
+
+        return parent;
+      } else {
+        console.warn("Error. The template for `" + name + "` does not exist.");
+      }
+    }
+  };
+
+  funcs.init(path);
+
+  return {
+    complete: function (cb) {
+      meta.onComplete.push(cb);
+      return this;
+    },
+
+    isComplete: function () {
+      return meta.isComplete;
+    },
+
+    new: function (name, obj) {
+      if (typeof name == "object") {
+        var node = name;
+        name = node.getAttribute("b-template");
+        obj = funcs.dotToObj(window, node.getAttribute("b-data"));
+
+        return funcs.createNodeFromTemplate(name, obj);
+      } else {
+        return funcs.createNodeFromTemplate(name, obj);
+      }
+    },
+
+    path: function (path) {
+      funcs.init(path);
+    }
+  };
+};
+
+module.set("template", TemplateBuilder);
+
 module.find("scope").setKey("toolkit", function ($scope) {
   var utils = {
     setVals: function ($scope, prop, obj) {
@@ -1713,6 +1980,32 @@ module.find("scope").setKey("toolkit", function ($scope) {
       } else console.warn("Error. `$scope.input.clear` must be passed an array parameter of valid b-name nodes.");
     }
   });
+});
+
+module.set("store", function (meta) {
+  return {
+    // delete all $data from all views.
+    delete: function () {
+      var util = module.get("util");
+
+      var data;
+
+      util.objectLoop(meta.routes, function (o, i) {
+        var storage = module.get("storage").namespace(i);
+
+        util.objectLoop(o.state.data, function (_, i, obj) {
+          delete obj[i];
+        });
+
+        storage.remove("data");
+      });
+    },
+
+    // get $data from another view.
+    get: function (view) {
+      return meta.routes[view].state.data;
+    }
+  };
 });
 
 module.set("transition", {
@@ -1841,15 +2134,20 @@ module.set("util", {
     this.immutable(obj, key);
   },
 
-  dotToObject: function (object, path) {
-    path = path.split(/\./);
+  dotToObject: function (obj, path) {
+    if (typeof path == "string") {
+      path = path.split(/\./);
 
-    path.forEach(function (o) {
-      if (object[o]) object = object[o];
-      // else console.warn("Cannot find property '" + o + "' of object in dot notation.");
-    });
+      for (var x = 0; x < path.length; x++) {
+        // go deeper as long as you can to find the specified object.
+        if (typeof obj[path[x]] !== "undefined" && obj[path[x]] !== null) {
+          obj = obj[path[x]];
+        // if it cannot complete the whole path, just return early `undefined`.
+        } else return "";
+      }
 
-    return (typeof object !== "object" || Array.isArray(object)) ? object : "";
+      return typeof obj == "undefined" ? "" : obj;
+    } else throw "Error. Path must be a string.";
   },
 
   findNearestParentRepeat: function (node) {
@@ -1872,6 +2170,14 @@ module.set("util", {
     }
 
     return false;
+  },
+
+  objectLoop: function (obj, callback) {
+    for (var x in obj) {
+      if (obj.hasOwnProperty(x)) {
+        callback(obj[x], x, obj);
+      }
+    }
   }
 });
 
@@ -1896,6 +2202,8 @@ module.set("view", {
     // if the new view is different from the old view, run the transition.
     if (name !== meta.view.current && meta.view.current !== null && meta.routes[name]) {
       var $scope = meta.routes[meta.view.current].state;
+
+      if (typeof $scope.unload == "function") $scope.unload();
 
       // record the view that was transitioned from.
       meta.view.old = meta.view.current;
@@ -1981,7 +2289,8 @@ var RouteConfig = (function (container) {
       inProgress: false
     },
     observer: null,
-    _prototype: _prototype
+    _prototype: _prototype,
+    template: module.get("template")()
   };
 
   module.get("init")(meta, container);
@@ -2011,7 +2320,11 @@ var RouteConfig = (function (container) {
     // add controller functionality to allow access to scope variables.
     controller: function (callback) {
       module.get("controller").scope(callback, meta);
-    }
+    },
+    store: (function () {
+      return module.get("store")(meta);
+    })(),
+    template: meta.template
   };
 
   return _prototype;

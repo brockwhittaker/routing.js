@@ -24,7 +24,8 @@ var RouteConfig = (function (container) {
       inProgress: false
     },
     observer: null,
-    _prototype: _prototype
+    _prototype: _prototype,
+    template: module.get("template")()
   };
 
   module.get("init")(meta, container);
@@ -54,7 +55,11 @@ var RouteConfig = (function (container) {
     // add controller functionality to allow access to scope variables.
     controller: function (callback) {
       module.get("controller").scope(callback, meta);
-    }
+    },
+    store: (function () {
+      return module.get("store")(meta);
+    })(),
+    template: meta.template
   };
 
   return _prototype;

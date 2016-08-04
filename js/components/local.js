@@ -16,6 +16,10 @@ var Storage = {
         } else return null;
       },
 
+      remove: function (key) {
+        localStorage.removeItem(namespace + "_" + key);
+      },
+
       lastUpdated: function (key) {
         var data = this.get(key);
 

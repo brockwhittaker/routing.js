@@ -27,15 +27,20 @@ module.set("util", {
     this.immutable(obj, key);
   },
 
-  dotToObject: function (object, path) {
-    path = path.split(/\./);
+  dotToObject: function (obj, path) {
+    if (typeof path == "string") {
+      path = path.split(/\./);
 
-    path.forEach(function (o) {
-      if (object[o]) object = object[o];
-      // else console.warn("Cannot find property '" + o + "' of object in dot notation.");
-    });
+      for (var x = 0; x < path.length; x++) {
+        // go deeper as long as you can to find the specified object.
+        if (typeof obj[path[x]] !== "undefined" && obj[path[x]] !== null) {
+          obj = obj[path[x]];
+        // if it cannot complete the whole path, just return early `undefined`.
+        } else return "";
+      }
 
-    return (typeof object !== "object" || Array.isArray(object)) ? object : "";
+      return typeof obj == "undefined" ? "" : obj;
+    } else throw "Error. Path must be a string.";
   },
 
   findNearestParentRepeat: function (node) {
@@ -58,5 +63,13 @@ module.set("util", {
     }
 
     return false;
+  },
+
+  objectLoop: function (obj, callback) {
+    for (var x in obj) {
+      if (obj.hasOwnProperty(x)) {
+        callback(obj[x], x, obj);
+      }
+    }
   }
 });

@@ -1,4 +1,4 @@
-var Repeater = function (name, node, arr) {
+var Repeater = function (name, node, arr, repeatParent) {
   var meta = {
     original: null,
     marker: null,
@@ -23,12 +23,6 @@ var Repeater = function (name, node, arr) {
         delete obj.viewModifier;
       }
 
-      return obj;
-    },
-
-    // remove all `__meta` attributes before returning the data to a user.
-    sanitizeData: function (obj) {
-      delete obj.__meta;
       return obj;
     },
 
@@ -68,6 +62,25 @@ var Repeater = function (name, node, arr) {
         throw new Error("Unable to copy obj! Its type isn't supported.");
     },
 
+    // recursively merge obj1 (and overwrite) in obj1.
+    merge: function (obj1, obj2) {
+      for (var p in obj2) {
+        try {
+          // Property in destination object set; update its value.
+          if (obj2[p].constructor == Object) {
+            obj1[p] = MergeRecursive(obj1[p], obj2[p]);
+          } else {
+            obj1[p] = obj2[p];
+          }
+        } catch(e) {
+          // Property in destination object not set; create it and set its value.
+          obj1[p] = obj2[p];
+        }
+      }
+
+      return obj1;
+    },
+
     // loop through all valid properties of an object and provide a callback
     // in value, key order.
     objectLoop: function (obj, callback) {
@@ -91,13 +104,21 @@ var Repeater = function (name, node, arr) {
         var parent = this.createNodeFromTemplate(arr[x]);
         parent.index = x;
 
+        parent.repeat = actions;
+
         meta.marker.parentNode.insertBefore(parent, meta.marker);
 
+        // bind an ID to both the node and array.
+        _funcs.bindID(parent, arr[x]);
+
+        parent.bParent = repeatParent;
         meta.elems.push(parent);
         meta.data.push(arr[x]);
       }
 
-      meta.marker.parentNode.removeChild(meta.marker);
+      // we don't want to remove the marker unless there are already nodes.
+      if (arr.length > 0)
+        meta.marker.parentNode.removeChild(meta.marker);
     },
 
     // this is the auto-run function that creates the marker and removes the
@@ -112,7 +133,10 @@ var Repeater = function (name, node, arr) {
       }
 
       var id = this.generateID();
-      meta.marker = this.createMarker(this.generateID());
+      meta.marker = this.createMarker(
+        this.generateID(),
+        node.parentNode.tagName.toLowerCase()
+      );
 
       // clone the original and store it.
       meta.original = this.node.store(node);
@@ -130,8 +154,15 @@ var Repeater = function (name, node, arr) {
 
     // create a marker in the DOM so that we know where the b-repeat should
     // start at.
-    createMarker: function (id) {
-      var div = document.createElement("div");
+    createMarker: function (id, tagName) {
+      var nodeType = {
+        "tbody": "tr",
+        "thead": "tr",
+        "table": "tr",
+        "tr": "td"
+      };
+
+      var div = document.createElement(nodeType[tagName] || "div");
 
       div.className = "_marker";
       div.style.visibility = "hidden";
@@ -155,7 +186,7 @@ var Repeater = function (name, node, arr) {
         return copy;
       },
 
-      set: function (node, obj, viewModifier) {
+      set: function (node, obj, viewModifier, parent) {
         var map = {
           "b-prop": "innerHTML",
           "b-src": "src",
@@ -186,7 +217,7 @@ var Repeater = function (name, node, arr) {
                 val = _funcs.parse.dotToObj(obj, attr);
                 cb = _funcs.parse.dotToObj(viewModifier || {}, attr);
 
-                node[o] = cb ? cb(val) : val;
+                node[o] = cb ? cb(val) : (val || "");
                 break;
 
               // look for the value inside the object by prop, as well as a
@@ -230,14 +261,15 @@ var Repeater = function (name, node, arr) {
           if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
             if (!parent.repeat) parent.repeat = {};
             var name = nodes[x].getAttribute("b-name");
+            nodes[x].bParent = parent;
 
-            if (name) parent.repeat[name] = Repeater(null, nodes[x], arr);
-            else parent.repeat[path] = Repeater(null, nodes[x], arr);
+            if (name) parent.repeat[name] = Repeater(null, nodes[x], arr, parent);
+            else parent.repeat[path] = Repeater(null, nodes[x], arr, parent);
           }
         }
 
         if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
-          this.node.set(nodes[x], obj, viewModifier);
+          this.node.set(nodes[x], obj, viewModifier, parent);
           nodes[x].bParent = parent;
         }
       }
@@ -255,12 +287,14 @@ var Repeater = function (name, node, arr) {
 
       for (var x = 0; x < nodes.length; x++) {
         if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {
-          this.node.set(nodes[x], obj, meta.viewModifier);
+          this.node.set(nodes[x], obj, meta.viewModifier, parent);
           nodes[x].bParent = parent;
         }
       }
 
       parent.removeAttribute("b-repeat");
+
+      parent.cloned = true;
 
       return parent;
     },
@@ -284,6 +318,13 @@ var Repeater = function (name, node, arr) {
     },
 
     DOM: {
+      transferProps: function (old_node, new_node) {
+        // give the new parent the old repeat attribute.
+        // replace the old meta.elems[index] with the new parent in the DOM.
+        ["repeat", "dataset", "bParent"].forEach(function (o) {
+          new_node[o] = old_node[o];
+        });
+      },
       _inner: {
         after: function (newNode, refNode) {
           if (!refNode) {
@@ -357,7 +398,15 @@ var Repeater = function (name, node, arr) {
     bindID: function (node, obj) {
       var id = this.generateID();
 
-      obj.__meta = { id: id };
+      // make the `__meta` property none enumerable or writable.
+      // set the value to the { id }.
+      Object.defineProperty(obj, "__meta", {
+        writable: false,
+        configurable: true,
+        enumerable: false,
+        value: { id: id }
+      });
+
       node.dataset.b_id = id;
     }
   };
@@ -470,22 +519,13 @@ var Repeater = function (name, node, arr) {
       });
     },
     get: function () {
-      var arr = _funcs.sanitizeData(_funcs.clone(meta.data));
-
-      arr.forEach(function (o) {
-        delete o.__meta;
-      });
-
-      return arr;
+      return meta.data;
     },
-    modify: function (index, viewModifier, callback) {
+    modify: function (index, obj) {
       var i = 0, id;
 
-      var args = _funcs.normalizeArgs(index, null, viewModifier, callback);
-
-
-      if (typeof args.index == "object") {
-        id = args.index.dataset.b_id;
+      if (typeof index == "object") {
+        id = index.dataset.b_id;
 
         meta.data.forEach(function (o, i) {
           if (o.__meta.id == id) index = i;
@@ -495,38 +535,28 @@ var Repeater = function (name, node, arr) {
           index = -1;
           throw "Error. This node couldn't be found in the repeat sequence.";
         }
-      } else index = args.index;
+      }
 
-      var __meta = meta.data[index].__meta;
-      args.callback.call(null, _funcs.sanitizeData(meta.data[index]));
-      meta.data[index].__meta = __meta;
+      _funcs.merge(meta.data[index], obj);
 
       var parent = _funcs.createNodeFromNode(
         meta.data[index],
         meta.elems[index],
-        args.viewModifier || meta.viewModifier
+        meta.viewModifier
       );
 
-      // give the new parent the old repeat attribute.
-      parent.repeat = meta.elems[index].repeat;
-      // replace the old meta.elems[index] with the new parent in the DOM.
+      _funcs.DOM.transferProps(meta.elems[index], parent);
+
       _funcs.DOM.replace(meta.elems[index], parent);
       // now set the meta.elems[index] to the new parent.
       meta.elems[index] = parent;
     },
 
-    modifyEach: function (viewModifier, callback) {
-      var args = _funcs.normalizeArgs(null, null, viewModifier, callback);
-
-      var __meta;
+    modifyEach: function (func) {
       for (var x = 0; x < meta.elems.length; x++) {
-        __meta = meta.data[x].__meta;
-        this.modify(
-          x,
-          args.viewModifier,
-          args.callback.bind(null, meta.data[x], x)
-        );
-        meta.data[x].__meta = __meta;
+        func(meta.data[x], x);
+
+        this.modify(x, meta.data[x]);
       }
     },
 

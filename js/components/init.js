@@ -4,8 +4,8 @@ module.set("init", function (meta, container) {
   // on hash change, run the route.deploy function through the funcs.view.new
   // wrapper function.
   window.onhashchange = (function () {
-    var hash = this.hash.public.get();
-    this.view.new(hash.view, meta);
+    var hash = module.get("hash").public.get();
+    module.get("view").new(hash.view, meta);
   }).bind(this);
 
   // query select the first element in the container selection.

@@ -1,0 +1,233 @@
+body {
+  display: none;
+  margin: 0;
+  height: 100vh;
+
+  font-family: "Yantramanav";
+
+  color: #292E33;
+  background-color: #292d33;
+
+  overflow: hidden;
+}
+
+::selection {
+  background: rgba(175, 40, 86, 0.3); /* WebKit/Blink Browsers */
+}
+
+#header {
+  height: 60px;
+
+  background: #fafafa; /* fallback for old browsers */
+}
+
+#view {
+  height: calc(100vh - 60px);
+}
+
+#sidebar,
+#page {
+  float: left;
+  height: 100%;
+  overflow-y: scroll;
+  background-color: #FFF;
+}
+
+#sidebar {
+  float: left;
+  width: 250px;
+  height: 100%;
+
+  border-right: 1px solid #EEE;
+}
+
+#page {
+  position: relative;
+  width: calc(100vw - 250px - 1px);
+
+  box-shadow: inset -600px 0 #292d33;
+}
+
+code pre {
+  margin: 0;
+  overflow-x: scroll;
+}
+
+#page code {
+  position: absolute;
+  right: 20px;
+  width: 560px;
+  color: #FFF;
+
+  height: 0;
+}
+
+#page code pre::before {
+  position: absolute;
+  top: -27px;
+  left: 0px;
+  padding: 5px 8px;
+
+  font-family: "Yantramanav";
+  font-weight: 500;
+  background-color: #EEE;
+  color: #292d33;
+
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+
+  box-shadow: 0 0 20px rgba(255,255,255,0.3);
+}
+
+#page code >  pre.javascript::before {
+  content: "JavaScript"
+}
+
+#page code >  pre.html::before {
+  content: "HTML"
+}
+
+#page code pre {
+  font-family: "Source Code Pro", "Menlo", "Andale Mono", monospace;
+  font-weight: 300;
+  font-size: 0.8em;
+
+  border-radius: 4px;
+  border-top-left-radius: 0px;
+
+  box-shadow: 0 0 20px rgba(0,0,0,0.2);
+}
+
+#page article {
+  margin: 20px;
+}
+
+article {
+  width: calc(100vw - 250px - 640px);
+  font-weight: 300;
+}
+
+article ol li {
+  padding-left: 10px;
+  margin: 5px 0px;
+}
+
+article table {
+  margin: 1em 0
+}
+
+article table thead td {
+  font-weight: 500;
+  border-bottom: 1px solid #E5E9ED;
+}
+
+article table tbody td.name {
+  font-family: "Source Code Pro", "Menlo", "Andale Mono", monospace;
+  font-weight: 300;
+
+  min-width: 120px;
+  max-width: 200px;
+
+  font-weight: 600;
+  font-size: 0.8em;
+
+  color: #248EA6
+}
+
+article table tbody td {
+  padding-right: 20px
+}
+
+article table tbody td.type {
+  font-style: italic;
+  max-width: 80px;
+}
+
+article table tbody td.description {
+
+}
+
+article table td.description {
+  min-width: 250px;
+}
+
+article section {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+h1, h2, h3 {
+  margin: 0;
+  font-weight: 300;
+}
+
+h1 {
+  font-size: 2.1rem;
+}
+
+h2 {
+  font-size: 1.8rem;
+}
+
+h3 {
+  font-size: 1.3rem;
+}
+
+span.routing-js::after {
+  content: "routing.js";
+  color: #248EA6;
+  font-weight: 500;
+}
+
+span.code {
+  font-family: "Source Code Pro", "Menlo", "Andale Mono", monospace;
+  font-weight: 400;
+  font-size: 0.8em;
+
+  color: #C34D75;
+}
+
+@media (max-width: 1200px) {
+  #sidebar {
+    position: absolute;
+    left: -250px;
+  }
+
+  #page {
+    width: 100%;
+    box-shadow: inset -50vw 0 #292d33;
+  }
+
+  #page code {
+    width: calc(50vw - 40px);
+  }
+
+  article {
+    width: calc(50% - 40px);
+  }
+}
+
+@media (max-width: 768px) {
+  #page {
+    width: 100%;
+    box-shadow: none;
+  }
+
+  article {
+    width: 90%;
+  }
+
+  #page code {
+    height: auto;
+    position: static;
+  }
+
+  #page code pre {
+    background-color: #202329;
+    border-radius: 4px;
+  }
+
+  #page code pre::before {
+    display: none;
+  }
+}

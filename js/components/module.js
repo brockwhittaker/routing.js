@@ -85,7 +85,7 @@ var IndModule = function (module) {
       if (module[key]) {
         return module[key];
       } else return {};
-      console.warn("Error. Module with key `" + key +"` does not exist.");
+      console.warn("Error. Module with key `" + key + "` does not exist.");
     },
     // delete a key inside a module.
     deleteKey: function (key) {
@@ -95,3 +95,8 @@ var IndModule = function (module) {
     }
   };
 };
+
+
+// fix the sidebars -- they still aren't fixed.
+// some shifts are showing up when they shouldn't.
+// have only user role shown.

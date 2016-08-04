@@ -36,6 +36,9 @@ module.set("scope", {
         CLEAR_INPUT: true
       });
 
+      // make `$data.repeat` immutable and undeletable.
+      immutable($scope.data, "repeat", {});
+
       // save all the data in the `$scope` in localStorage.
       immutable($scope.data, "save", scope.save.bind(this, $scope, meta));
 

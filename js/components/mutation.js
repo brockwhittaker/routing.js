@@ -41,8 +41,6 @@ module.set("mutation", {
     var events = node.getAttribute("b-events"),
         name = node.getAttribute("b-name");
 
-
-
     // these require a name because these events are bound to a namespace.
     if (name) {
       var scope = module.get("scope");
@@ -73,10 +71,23 @@ module.set("mutation", {
       var cb_name = node.getAttribute("b-" + event);
 
       if (cb_name) {
-        node.addEventListener(event, function (e) {
+        // I have no idea why, but somehow nodes pass through here twice and get
+        // events applied to them twice.
+        if (!node.eventsApplied) {
+          node.eventsApplied = true;
+
+          node.addEventListener(event, function (e) {
+            if (typeof $scope[cb_name] == "function")
+              $scope[cb_name].call(this, e);
+          });
+        }
+
+        /*
+        node["on" + event] = function (e) {
           if (typeof $scope[cb_name] == "function")
             $scope[cb_name].call(this, e);
-        });
+        };
+        */
       }
     });
   },
@@ -130,6 +141,18 @@ module.set("mutation", {
 
           if (o.hasAttribute("b-name")) {
             $scope.current.event._addNode(o.getAttribute("b-name"), o);
+          }
+
+          // put in a new template -- wait if not loaded, otherwise replace
+          // instantly.
+          if (o.hasAttribute("b-template")) {
+            if (!meta.template.isComplete()) {
+              meta.template.onComplete(function () {
+                o.parentNode.replaceChild(meta.template.new(o), o);
+              });
+            } else {
+              o.parentNode.replaceChild(meta.template.new(o), o);
+            }
           }
 
           if (o.hasAttribute("b-repeat")) {

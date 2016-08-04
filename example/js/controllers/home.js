@@ -44,7 +44,7 @@ route.controller(function ($scope, $data, view) {
       else return "<div class='red bool'></div>";
     }
   });
-  
+
   $messages.push(messages);
   $names.push(names);
 

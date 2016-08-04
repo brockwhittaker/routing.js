@@ -1,0 +1,62 @@
+<h1 b-template="h1" b-prop="html"></h1>
+<h2 b-template="h2" b-prop="html"></h2>
+<h3 b-template="h3" b-prop="html"></h3>
+
+<p b-template="p" b-prop="html"></p>
+
+
+<table b-template="argumentTable">
+  <thead>
+    <tr>
+      <td class="name">Param</td>
+      <td class="type">Type</td>
+      <td class="description">Description</td>
+    </tr>
+  </thead>
+  <tbody>
+    <tr b-repeat-in="data">
+      <td class="name" b-prop="name"></td>
+      <td class="type" b-prop="type"></td>
+      <td class="description" b-prop="description"></td>
+    </tr>
+  </tbody>
+</table>
+
+<div b-template="combinedArgumentTable">
+  <h3 b-prop="header"></h3>
+  <p b-prop="p"></p>
+
+  <table>
+    <thead>
+      <tr>
+        <td class="name">Param</td>
+        <td class="type">Type</td>
+        <td class="description">Description</td>
+      </tr>
+    </thead>
+    <tbody>
+      <tr b-repeat-in="data">
+        <td class="name" b-prop="name"></td>
+        <td class="type" b-prop="type"></td>
+        <td class="description" b-prop="description"></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<ol b-template="ol">
+  <li b-repeat-in="data">
+    <span b-prop="value"></span>
+  </li>
+</ol>
+
+<code b-template="JSCode">
+  <pre b-prop="html" class="javascript">
+  </pre>
+</code>
+
+<code b-template="HTMLCode">
+  <pre b-prop="html" class="html">
+  </pre>
+</code>

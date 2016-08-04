@@ -20,6 +20,8 @@ module.set("view", {
     if (name !== meta.view.current && meta.view.current !== null && meta.routes[name]) {
       var $scope = meta.routes[meta.view.current].state;
 
+      if (typeof $scope.unload == "function") $scope.unload();
+
       // record the view that was transitioned from.
       meta.view.old = meta.view.current;
       // set the meta.view.current to the new.view.

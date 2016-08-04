@@ -13,9 +13,9 @@
   </div>
 </div>
 
-<div b-repeat="names">
-  <div b-prop="name"></div>
-  <div b-repeat-in="numbers">
+<div b-repeat="names" class="names">
+  <div b-prop="name" b-click="clickThis"></div>
+  <div b-repeat-in="numbers" b-click="clickThis">
     <div b-prop="number"></div>
   </div>
 </div>
