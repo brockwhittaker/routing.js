@@ -256,6 +256,7 @@ var Repeater = function (name, node, arr, repeatParent) {
       for (var x = 0; x < nodes.length; x++) {
         if (nodes[x].hasAttribute("b-repeat-in")) {
           path = nodes[x].getAttribute("b-repeat-in");
+
           arr = _funcs.parse.dotToObj(obj, path);
 
           if (!this.node.isInsideBRepeatIn(nodes[x], parent)) {

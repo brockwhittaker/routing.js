@@ -41,6 +41,31 @@ body {
   border-right: 1px solid #EEE;
 }
 
+#sidebar .item {
+  padding-left: 20px;
+  padding-right: 20px;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  line-height: 2;
+
+  cursor: pointer;
+}
+
+#sidebar .item:hover {
+  color: #248EA6;
+}
+
+#sidebar .subtopics {
+  margin-left: 20px;
+
+  font-weight: 300;
+
+  border-left: 1px solid #EEE;
+}
+
 #page {
   position: relative;
   width: calc(100vw - 250px - 1px);
@@ -125,8 +150,7 @@ article table tbody td.name {
   font-family: "Source Code Pro", "Menlo", "Andale Mono", monospace;
   font-weight: 300;
 
-  min-width: 120px;
-  max-width: 200px;
+  min-width: 50px;
 
   font-weight: 600;
   font-size: 0.8em;
@@ -135,12 +159,11 @@ article table tbody td.name {
 }
 
 article table tbody td {
-  padding-right: 20px
+  padding: 0.5em 0 0.5em 1em;
 }
 
 article table tbody td.type {
   font-style: italic;
-  max-width: 80px;
 }
 
 article table tbody td.description {
@@ -148,7 +171,7 @@ article table tbody td.description {
 }
 
 article table td.description {
-  min-width: 250px;
+  min-width: 50px;
 }
 
 article section {
@@ -158,6 +181,7 @@ article section {
 
 h1, h2, h3 {
   margin: 0;
+  margin-top: 1em;
   font-weight: 300;
 }
 
@@ -170,6 +194,7 @@ h2 {
 }
 
 h3 {
+  margin-top: 1em;
   font-size: 1.3rem;
 }
 

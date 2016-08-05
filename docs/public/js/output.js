@@ -283,6 +283,62 @@ section.$scope = [
     html: "The scope is the all-encompassing object for adding events, repeats, and objects to a particular view. Let's take a look below at the different builders and functions available within <span class='code'>$scope</span>."
   },
   {
+    tag: "JSCode",
+    html:
+`// add these events to all nodes present and future where
+// 'b-name="person"'.
+$scope.event.add("person", {
+  click: {
+    sayMyName: function () {
+      console.log(this.innerText);
+    }
+  },
+  dblclick: {
+    deleteMe: function () {
+      this.parentNode.removeChild(this);
+    }
+  },
+  contextmenu: {
+    preventMenu: function (e) {
+      e.preventDefault();
+    }
+  }
+});`
+  },
+  {
+    tag: "combinedArgumentTable",
+    header: "$scope.event.add",
+    p: "The <span class='code'>$scope.event.add</span> feature allows for events to be added to existing and future nodes with a particular <span class='code'>b-name</span>. This works by adding generic event listeners when nodes are first created that point to queues of functions. This means that this same system allows for the deletion of event listeners by their names.",
+    data: [
+      { name: "b_name", type: "String", description: "The <span class='code'>b-name</span> of the nodes that you want to add an event listener to." },
+      { name: "b_name", type: "Object[Object]", description: "A two-level deep object where the outer level has keys that match the event type that you want to add a listener to, and an inner layer with event listener functions that are matched with named keys." },
+    ]
+  },
+  {
+    tag: "p",
+    html: "These events are then set into a queue and fired in rapid succession when a general <span class='code'>click</span>, <span class='code'>dblclick</span>, <span class='code'>contextmenu</span>, or other event are fired. They are all passed the same <span class='code'>e</span> value. This method is also more efficient than standard event listeners due to only one event being triggered instead of potentially dozens."
+  },
+  {
+    tag: "p",
+    html: "Using this system of adding events also ensures that multiples of the same event cannot be added. An event will be rejected if it has the same name and if of the same event type as an existing event in the queue."
+  },
+  {
+    tag: "JSCode",
+    html:
+`// remove the 'sayMyName' event we just added.
+$scope.event.remove("person", "click", "sayMyName")`
+  },
+  {
+    tag: "combinedArgumentTable",
+    header: "$scope.event.remove",
+    p: "The <span class='code'>$scope.event.remove</span> feature will remove a particular event from a node given a <span class='code'>b-name</span>, <span class='code'>type</span> and <span class='code'>func_name</span>",
+    data: [
+      { name: "b_name", type: "string", description: "The <span class='code'>b-name</span> of the nodes." },
+      { name: "type", type: "string", description: "The type of event you want to remove." },
+      { name: "func_name", type: "string", description: "The specific name of the event you are removing." }
+    ]
+  },
+  {
     tag: "h3",
     html: "$scope.repeat"
   },
@@ -391,6 +447,26 @@ route.controller(function ($scope, $data, view) {
     ]
   },
   {
+    tag: "JSCode",
+    html:
+`var pets = [
+  { species: "Dog", name: "Axl", age: 7 },
+  { species: "Dog", name: "Willow", age: 3 },
+  { species: "Cat", name: "Kali", age: 5 }
+]
+
+// create a new repeater for the 'b-repeat="pets"'
+var $pets = $scope.repeat("pets");
+
+// modify the first pet 'Axl' to have an age of 8, and update in the HTML.
+$pets.modify(0, {
+  age: 8
+});
+
+console.log($pets.get()[0].age); // 8
+`
+  },
+  {
     tag: "combinedArgumentTable",
     header: "$repeat.modify",
     p: "Given a particular <span class='code'>b-repeat</span> node or index in a repeat sequence, pass in new data to modify the existing core data and update the HTML correspondingly. Data is additive in a way similar to <span class='code'>Object.assign</span> which means that any attributes that are omitted are left untouched.",
@@ -401,7 +477,7 @@ route.controller(function ($scope, $data, view) {
   {
     tag: "combinedArgumentTable",
     header: "$repeat.modifyEach",
-    p: "This is essentially **$repeat.modify** meets **Array.prototype.forEach**. No need to specify an index anymore, just pass in an object with the new attributes.",
+    p: "This is essentially <span class='code'>$repeat.modify</span> meets <span class='code'>Array.prototype.forEach</span>. No need to specify an index anymore, just pass in an object with the new attributes.",
     data: [
       { name: "data", type: "Object", description: "An object of properties to overwrite existing data in a particular repeat sequence index or node." }
     ]

@@ -1,4 +1,13 @@
-<div id="sidebar"></div>
+<div id="sidebar">
+  <div b-repeat="sidebarItem">
+    <div b-prop="title" b-click="sClick" class="item"></div>
+    <div class="subtopics">
+      <div b-repeat-in="children" b-prop="title" b-click="sClick" class="item">
+        <span b-prop="title"></span>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="page">
   <article b-name="article">
     <section b-repeat="section">
