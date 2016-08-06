@@ -23,6 +23,7 @@ body {
 
 #view {
   height: calc(100vh - 60px);
+  overflow-y: hidden;
 }
 
 #sidebar,
@@ -41,7 +42,8 @@ body {
   border-right: 1px solid #EEE;
 }
 
-#sidebar .item {
+#sidebar .item,
+#sidebar .item span {
   padding-left: 20px;
   padding-right: 20px;
 
@@ -71,6 +73,7 @@ body {
   width: calc(100vw - 250px - 1px);
 
   box-shadow: inset -600px 0 #292d33;
+  -webkit-overflow-scrolling: touch;
 }
 
 code pre {
@@ -131,7 +134,7 @@ article {
   width: calc(100vw - 250px - 640px);
   font-weight: 300;
 }
-
+#v
 article ol li {
   padding-left: 10px;
   margin: 5px 0px;
@@ -196,6 +199,37 @@ h2 {
 h3 {
   margin-top: 1em;
   font-size: 1.3rem;
+}
+
+div.warning {
+  position: relative;
+
+  margin-top: calc(45px);
+
+
+  background-color: #E8DFC3;
+  padding: 5px 15px;
+  border-radius: 4px;
+  border-top-left-radius: 0px;
+}
+
+div.warning::before {
+  content: "Warning";
+
+  position: absolute;
+  top: -31px;
+  left: 0px;
+  padding: 5px 8px;
+
+  font-family: "Yantramanav";
+  font-weight: 500;
+  background-color: #292d33;
+  color: #FFF;
+
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+
+  box-shadow: 0 0 20px rgba(255,255,255,0.3);
 }
 
 span.routing-js::after {

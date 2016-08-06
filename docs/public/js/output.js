@@ -283,6 +283,39 @@ section.$scope = [
     html: "The scope is the all-encompassing object for adding events, repeats, and objects to a particular view. Let's take a look below at the different builders and functions available within <span class='code'>$scope</span>."
   },
   {
+    tag: "HTMLCode",
+    html:
+`&lt;div b-click="deleteMe"&gt;Delete Me&lt;div&gt;`
+  },
+  {
+    tag: "h3",
+    html: "Direct Event Assignment"
+  },
+  {
+    tag: "p",
+    html: "For a less verbose way to add single event listeners that are non-removable (but replaceable/nullable), try the direct-assignment method. In the HTML you will specify a <span class='code'>b-{event}</span> attribute and set it equal to a function name which you will then call in the <span class='code'>$scope</span>. This will apply to all elements that have that particular b-click &mdash; not just elements of a <span class='code'>b-name</span>."
+  },
+  {
+    tag: "JSCode",
+    html:
+`// delete the node that was clicked from the DOM.
+$scope.deleteMe = function () {
+  this.parentNode.removeChild(this);
+};`
+  },
+  {
+    tag: "p",
+    html: "These events can be added every time a view loads however because they are removed when nodes are unloaded or swapped from the DOM."
+  },
+  {
+    tag: "p",
+    html: "The function can be changed at any time, as it is only referenced by a generic callback function, so removing this event is as simple as deleting the function."
+  },
+  {
+    tag: "warning",
+    html: "Currently this method is only supported with <span class='code'>b-click</span>, <span class='code'>b-input</span>, and <span class='code'>b-mousemove</span>. More may be added later but for other events you will want to use the <span class='code'>$scope.event.add</span> function which supports all Event types including custom Events."
+  },
+  {
     tag: "JSCode",
     html:
 `// add these events to all nodes present and future where
@@ -326,7 +359,7 @@ $scope.event.add("person", {
     tag: "JSCode",
     html:
 `// remove the 'sayMyName' event we just added.
-$scope.event.remove("person", "click", "sayMyName")`
+$scope.event.remove("person", "click", "sayMyName");`
   },
   {
     tag: "combinedArgumentTable",
@@ -336,6 +369,31 @@ $scope.event.remove("person", "click", "sayMyName")`
       { name: "b_name", type: "string", description: "The <span class='code'>b-name</span> of the nodes." },
       { name: "type", type: "string", description: "The type of event you want to remove." },
       { name: "func_name", type: "string", description: "The specific name of the event you are removing." }
+    ]
+  },
+  {
+    tag: "JSCode",
+    html:
+`// collect values from 'b-names' in array.
+// clear the input after.
+var data = $scope.input.val(
+  ["username", "password", "education"],
+  $scope._.CLEAR_INPUT
+);
+
+console.log(data);
+// { username: "brock", password: "hunter2", education:
+//   ["Mountain Pointe High School", "Arizona State University"]
+// }
+`
+  },
+  {
+    tag: "combinedArgumentTable",
+    header: "$scope.input.val",
+    p: "The <span class='code'>$scope.input.val</span> feature retrieves the values of all the <span class='code'>b-name</span> nodes specified in an array and returns an object of keys matching the <span class='code'>b-name</span> of the nodes the values were retrieved from. If only a single value is retrieved, it will be paired directly with a key, otherwise it will be pushed to an array that is paired with the key.",
+    data: [
+      { name: "b_names", type: "Array", description: "An Array of all <span class='code'>b-name</span> nodes to collect input from." },
+      { name: "clear_input", type: "Boolean", description: "Clears the input of those elements after collecting. Defaults to <span class='code'>false</span>, and can be set as <span class='code'>true</span> either directly or with <span class='code'>$scope._.CLEAR_INPUT</span>." }
     ]
   },
   {
@@ -415,6 +473,14 @@ route.controller(function ($scope, $data, view) {
     ]
   },
   {
+    tag: "h1",
+    html: "$repeat"
+  },
+  {
+    tag: "p",
+    html: "The <span class='code'>$repeat</span> method is not a directly accessible element but rather the builder product of running <span class='code'>$scope.repeat(b_name)</span>. This is a class in itself that has many properties for manipulating the data store and HTML."
+  },
+  {
     tag: "combinedArgumentTable",
     header: "$repeat.push, $repeat.unshift, $repeat.at",
     p: "These three data-adding functions work similarly and have the same arguments.",
@@ -481,6 +547,95 @@ console.log($pets.get()[0].age); // 8
     data: [
       { name: "data", type: "Object", description: "An object of properties to overwrite existing data in a particular repeat sequence index or node." }
     ]
+  }
+];
+
+section.$data = [
+  {
+    tag: "h1",
+    html: "$data"
+  },
+  {
+    tag: "p",
+    html: "The <span class='code'>$data</span> object is a general purpose storage system for a particular view. Aside from using it as a general privately scoped storage container, you can also use methods like <span class='code'>$scope.save</span> to allow data to persist through sessions and <span class='code'>$scope.apply</span> to retrieve data for a given view from localStorage."
+  },
+  {
+    tag: "h3",
+    html: "$data.save"
+  },
+  {
+    tag: "JSCode",
+    html:
+`$data.animals = ["Dog", "Cat", "Rat", "Porcupine", "Dolphin"];
+
+// save animal list for later session.
+$data.save();`
+  },
+  {
+    tag: "p",
+    html: "The <span class='code'>$data.save</span> method takes all data present in this view&rsquo;s scope and stores it for later use in localStorage. Keep in mind that this data persists across all views of the same name on your site. Pick unique keys for storing data as you would in any other centralized system. This means you can also access data on different pages in the same domain."
+  },
+  {
+    tag: "p",
+    html: "This function has no arguments."
+  },
+  {
+    tag: "h3",
+    html: "$data.apply"
+  },
+  {
+    tag: "JSCode",
+    html:
+`// fetch all stored data in localStorage for this view.
+$data.apply();
+
+console.log($data.animals);
+// ["Dog", "Cat", "Rat", "Porcupine", "Dolphin"]`
+  },
+  {
+    tag: "p",
+    html: "The <span class='code'>$data.apply</span> method searches in localStorage for all data associated with the current scope and applies it to the <span class='code'>$data</span> object for current use. Keep in mind that different views named the same in other parts of the domain will store under the same storage compartment. Make sure your keys are unique."
+  },
+  {
+    tag: "p",
+    html: "This function has no arguments."
+  },
+  {
+    tag: "h3",
+    html: "$data.remove"
+  },
+  {
+    tag: "JSCode",
+    html:
+`// keeps a current copy of $data.animals but removes
+// from storage.
+$data.remove();`
+  },
+  {
+    tag: "p",
+    html: "The <span class='code'>$data.remove</span> method keeps the <span class='code'>$data</span> instance of the variable while removing the copy in localStorage. This means that the data will still be available in this session but on browser reload it will not be available anymore."
+  },
+  {
+    tag: "p",
+    html: "This function has no arguments."
+  },
+  {
+    tag: "h3",
+    html: "$data.lastUpdated"
+  },
+  {
+    tag: "JSCode",
+    html:
+`console.log($data.lastUpdated());
+// 1470416953628`
+  },
+  {
+    tag: "p",
+    html: "The <span class='code'>$data.lastUpdate</span> method gives a timestamp of when the last attribute in <span class='code'>$data</span> was stored to localStorage. It is here to help you decide whether or not it is necessary to retrieve fresh information."
+  },
+  {
+    tag: "p",
+    html: "This function has no arguments."
   }
 ];
 

@@ -6,7 +6,22 @@ var printTemplates = function (template, $parent, nodes, $sidebarItems) {
   var sidebar = generateSidebar();
   $sidebarItems.push(sidebar.object);
 
+  var get = route.hash.get().get;
+
+  if (get.section) {
+    // give it a bit of a delay for UI.
+    setTimeout(function () {
+      sendToSection(sidebar.map, get.section);
+    }, 250);
+  }
+
   return sidebar.map;
+};
+
+var sendToSection = function ($map, section) {
+  $("#page").animate({
+    scrollTop: $map[section].offsetTop
+  }, 500);
 };
 
 var generateSidebar = function () {
@@ -51,6 +66,8 @@ route.controller(function ($scope, $data, view) {
 
   $scope.sClick = function () {
     var title = this.innerText;
+
+    route.hash.set.get({ section: title });
 
     $("#page").animate({
       scrollTop: $data.sidebarMap[title].offsetTop

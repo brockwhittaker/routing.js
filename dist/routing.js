@@ -1580,10 +1580,14 @@ module.set("scope", {
       immutable($scope.data, "repeat", {});
 
       // save all the data in the `$scope` in localStorage.
-      immutable($scope.data, "save", scope.save.bind(this, $scope, meta));
+      immutable($scope.data, "save", function () {
+        scope.save($scope, meta);
+      });
 
       // retrieve all saved `$scope` data stored in localStorage.
-      immutable($scope.data, "retrieve", scope.retrieve.bind(this, $scope, meta));
+      immutable($scope.data, "retrieve", function () {
+        scope.retrieve($scope, meta);
+      });
 
       // apply all saved `$scope` data stored in localStorage to the `$scope.data`.
       immutable($scope.data, "apply", function (config) {
@@ -1670,7 +1674,15 @@ module.find("scope").setKeys({
   save: function ($scope, meta, config) {
     var storage = new Storage.namespace(meta.view.current);
 
-    storage.set("data", $scope.data, new Date().getTime());
+    var $data = {};
+
+    for (var x in $scope) {
+      if ($scope.hasOwnProperty(x)) {
+        $data[x] = $scope.data[x];
+      }
+    }
+
+    storage.set("data", $data, new Date().getTime());
   },
   retrieve: function ($scope, meta) {
     var storage = new Storage.namespace(meta.view.current),

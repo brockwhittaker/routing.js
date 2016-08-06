@@ -2,7 +2,15 @@ module.find("scope").setKeys({
   save: function ($scope, meta, config) {
     var storage = new Storage.namespace(meta.view.current);
 
-    storage.set("data", $scope.data, new Date().getTime());
+    var $data = {};
+
+    for (var x in $scope) {
+      if ($scope.hasOwnProperty(x)) {
+        $data[x] = $scope.data[x];
+      }
+    }
+
+    storage.set("data", $data, new Date().getTime());
   },
   retrieve: function ($scope, meta) {
     var storage = new Storage.namespace(meta.view.current),
