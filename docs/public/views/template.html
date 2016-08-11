@@ -8,7 +8,6 @@
   <p b-prop="html"></p>
 </div>
 
-
 <table b-template="argumentTable">
   <thead>
     <tr>
@@ -18,10 +17,27 @@
     </tr>
   </thead>
   <tbody>
-    <tr b-repeat-in="data">
-      <td class="name" b-prop="name"></td>
-      <td class="type" b-prop="type"></td>
-      <td class="description" b-prop="description"></td>
+    <tr b-repeat-in="data.body">
+      <td b-repeat-in="row">
+        <span b-prop="value" b-class="class"></span>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table b-template="table">
+  <thead>
+    <tr>
+      <td b-repeat-in="data.head">
+        <span b-prop="value"></span>
+      </td>
+    </tr>
+  </thead>
+  <tbody>
+    <tr b-repeat-in="data.body">
+      <td b-repeat-in="row">
+        <span b-prop="value"></span>
+      </td>
     </tr>
   </tbody>
 </table>

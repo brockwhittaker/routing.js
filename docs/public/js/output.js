@@ -11,7 +11,7 @@ section.overview = [
   },
   {
     tag: "p",
-    html: "If you are looking for a framework that takes care of every step, this isn't it. A good portion of your project will still be decoupled from this framework however <span class='routing-js'></span>"
+    html: "If you are looking for a framework that takes care of every step, this isn't it. A good portion of your project will still be decoupled from this framework however <span class='routing-js'></span> does aim to accomplish a total reduction of event listeners and element creation by way of node building in JavaScript."
   },
   {
     tag: "p",
@@ -636,6 +636,13 @@ $data.remove();`
   {
     tag: "p",
     html: "This function has no arguments."
+  }
+];
+
+section.templating = [
+  {
+    tag: "h1",
+    html: "Templating"
   }
 ];
 

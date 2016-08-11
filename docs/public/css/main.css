@@ -3,12 +3,13 @@ body {
   margin: 0;
   height: 100vh;
 
-  font-family: "Yantramanav";
+  font-family: "Yantramanav", "Helvetica Neue", "Helvetica", arial, sans-serif;
 
   color: #292E33;
-  background-color: #292d33;
 
   overflow: hidden;
+
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
 }
 
 ::selection {
@@ -16,9 +17,43 @@ body {
 }
 
 #header {
+  position: relative;
   height: 60px;
 
   background: #fafafa; /* fallback for old browsers */
+
+  z-index: 2;
+}
+
+#header #logo {
+  float: left;
+
+  margin-top: 8px;
+  margin-left: 8px;
+  padding: 5px 10px;
+
+  font-family: "Oswald", "Yantramanav", "Helvetica Neue", "Helvetica", arial, sans-serif;
+  font-size: 1.2em;
+
+  border: 3px solid #444;
+
+  cursor: pointer;
+}
+
+#header #hamburger {
+  display: none;
+  float: left;
+
+  margin: 15px 8px 0px 16px;
+
+  width: 30px;
+  height: 30px;
+
+  background-image: url(../assets/hamburger.png);
+  background-size: cover;
+  background-position: center;
+
+  cursor: pointer;
 }
 
 #view {
@@ -32,12 +67,15 @@ body {
   height: 100%;
   overflow-y: scroll;
   background-color: #FFF;
+
+  transition: all 0.3s ease;
 }
 
 #sidebar {
   float: left;
   width: 250px;
-  height: 100%;
+
+  -webkit-overflow-scrolling: touch;
 
   border-right: 1px solid #EEE;
 }
@@ -56,6 +94,10 @@ body {
   cursor: pointer;
 }
 
+#sidebar .item.selected {
+  color: #248EA6;
+}
+
 #sidebar .item:hover {
   color: #248EA6;
 }
@@ -70,6 +112,8 @@ body {
 
 #page {
   position: relative;
+  left: 0;
+
   width: calc(100vw - 250px - 1px);
 
   box-shadow: inset -600px 0 #292d33;
@@ -149,7 +193,7 @@ article table thead td {
   border-bottom: 1px solid #E5E9ED;
 }
 
-article table tbody td.name {
+article table tbody td .name {
   font-family: "Source Code Pro", "Menlo", "Andale Mono", monospace;
   font-weight: 300;
 
@@ -165,15 +209,15 @@ article table tbody td {
   padding: 0.5em 0 0.5em 1em;
 }
 
-article table tbody td.type {
+article table tbody td .type {
   font-style: italic;
 }
 
-article table tbody td.description {
+article table tbody td .description {
 
 }
 
-article table td.description {
+article table td .description {
   min-width: 50px;
 }
 
@@ -246,10 +290,35 @@ span.code {
   color: #C34D75;
 }
 
+span.light {
+  font-weight: 300;
+}
+
 @media (max-width: 1200px) {
+  #header #hamburger {
+    display: inline-block;
+  }
+
   #sidebar {
     position: absolute;
-    left: -250px;
+    left: 0px;
+    width: 0px;
+    overflow-x: hidden;
+    transition: all 0.3s ease;
+    z-index: 1;
+
+    height: calc(100% - 60px);
+  }
+
+  #sidebar.show {
+    width: 250px;
+    box-shadow: 0 0 25px rgba(0,0,0,0.3);
+  }
+
+  #sidebar.show + #page {
+    left: 250px;
+    -webkit-filter: brightness(0.8) saturate(0.1);
+    filter: brightness(0.8) saturate(0.1);
   }
 
   #page {
@@ -272,8 +341,9 @@ span.code {
     box-shadow: none;
   }
 
-  article {
+  #page article {
     width: 90%;
+    margin: 0 auto;
   }
 
   #page code {

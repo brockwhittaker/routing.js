@@ -191,7 +191,8 @@ var Repeater = function (name, node, arr, repeatParent) {
           "b-prop": "innerHTML",
           "b-src": "src",
           "b-href": "href",
-          "b-style": null
+          "b-style": null,
+          "b-class": "class"
         };
 
         var attr, val, cb;

@@ -1,3 +1,20 @@
+var sendToSection = function ($map, section) {
+  $("#page").animate({
+    scrollTop: $map[section].offsetTop
+  }, 500);
+};
+
+var sidebar = (function ($sidebar) {
+  return {
+    show: function () {
+      $sidebar.addClass("show");
+    },
+    hide: function () {
+      $sidebar.removeClass("show");
+    }
+  };
+}).call(null, $("#sidebar"));
+
 var printTemplates = function (template, $parent, nodes, $sidebarItems) {
   nodes.forEach(function (node) {
     $parent.append(template.new(node.tag, node));
@@ -16,12 +33,6 @@ var printTemplates = function (template, $parent, nodes, $sidebarItems) {
   }
 
   return sidebar.map;
-};
-
-var sendToSection = function ($map, section) {
-  $("#page").animate({
-    scrollTop: $map[section].offsetTop
-  }, 500);
 };
 
 var generateSidebar = function () {
@@ -52,13 +63,9 @@ route.controller(function ($scope, $data, view) {
 
   var $sidebarItems = $scope.repeat("sidebarItem");
 
-  if (template.isComplete) {
+  template.complete(function () {
     $data.sidebarMap = printTemplates(template, $("article"), sections, $sidebarItems, $scope);
-  } else {
-    template.onComplete(function () {
-      $data.sidebarMap = printTemplates(template, $("article"), sections, $sidebarItems, $scope);
-    });
-  }
+  });
 
   $('code pre').each(function(i, block) {
     hljs.highlightBlock(block);
@@ -69,9 +76,16 @@ route.controller(function ($scope, $data, view) {
 
     route.hash.set.get({ section: title });
 
+    /* -- jQuery for adding highlighting and page scroll -- */
+    $(".item").removeClass("selected");
+    $(this).addClass("selected");
+
     $("#page").animate({
       scrollTop: $data.sidebarMap[title].offsetTop
-    }, 500);
+    }, 500, function () {
+      sidebar.hide();
+    });
+    /* -- end of jQuery -- */
   };
 
   console.log($scope, $data, view);

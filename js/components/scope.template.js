@@ -173,7 +173,8 @@ var TemplateBuilder = function (path) {
 
   return {
     complete: function (cb) {
-      meta.onComplete.push(cb);
+      if (meta.isComplete) cb();
+      else meta.onComplete.push(cb);
       return this;
     },
 
